@@ -15,3 +15,6 @@ STATES: Cargas/validación existentes, sin coincidencias, filtros activos/restab
 RESPONSIVE: Escritorio 1440px; móvil 390px con KPIs en dos columnas, paneles apilados y detalle a pantalla completa. Tablas con scroll local.
 BUILD PATH: code, hereda el mundo FEMSA y adapta el componente suministrado. Sin comp de fidelidad literal.
 FINISH: Gate real, navegador escritorio/móvil, prueba de animación/pausa/arrastre, revisión de evidencia y documentación final.
+
+## Ajuste de lectura y navegación
+Solicitud posterior: celdas principales 20px, contexto 17px, IDs 19px, cabeceras 17px, filtros y dropdowns 18px; conservar esos tamaños en móvil. La fila completa abre el registro y el botón nativo de detalle conserva el acceso con teclado. Sidebar expandido de 280px, ancho ajustable entre 248 y 360px, contraído de 88px y panel modal móvil hasta 960px. No se muestra el enlace a propuestas originales. Los selectores de filtros, cortes y orden comparten dropdown animado con teclado y cierre exterior. Cambiar de pestaña anima únicamente el contenido durante 240ms y restablece su desplazamiento; movimiento reducido desactiva esas animaciones.

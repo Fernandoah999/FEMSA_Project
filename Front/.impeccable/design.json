@@ -2352,6 +2352,16 @@
         "name": "dashboard-globe",
         "value": "requestAnimationFrame; dt máximo .05s; giro .025rad/s tras 6s sin arrastre",
         "purpose": "Ondas, cometas y giro ilustrativos; pausa inicial con movimiento reducido, fuera de pantalla o documento oculto. Arrastre, pausa y centrar disponibles."
+      },
+      {
+        "name": "dashboard-page-transition",
+        "value": "page-enter .24s cubic-bezier(.16,1,.3,1); opacity .35 → 1; translateY 8px → 0",
+        "purpose": "Entrada del contenido al cambiar de pestaña; sidebar estable. Desactivada con movimiento reducido."
+      },
+      {
+        "name": "dashboard-dropdown",
+        "value": "opacity/translate .18s ease-out; chevron .2s ease-in-out; option-enter .18s con retraso máximo 126ms",
+        "purpose": "Apertura/cierre y opciones de los selectores del dashboard. Desactivada con movimiento reducido."
       }
     ],
     "breakpoints": [
@@ -2380,8 +2390,8 @@
         "value": "1250px"
       },
       {
-        "name": "dashboard-icon-rail-max",
-        "value": "1000px"
+        "name": "dashboard-mobile-drawer-max",
+        "value": "960px"
       },
       {
         "name": "dashboard-mobile-max",
@@ -2395,7 +2405,7 @@
       "kind": "button",
       "description": "Acción principal del dashboard /.",
       "html": "<button class=\"ds-primary\">Cargar Excel</button>",
-      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:11px 16px;border-radius:5px;font-size:15px;font-weight:500;cursor:pointer;transition:background .16s,color .16s,border-color .16s;font-family:Calibri,Carlito,Arial,sans-serif;background:#990033;color:#fff;border:1px solid #990033}.ds-primary:hover{background:#7d002a;border-color:#7d002a}.ds-primary:focus-visible{outline:2px solid #990033;outline-offset:4px;}.ds-primary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:11px 16px;border-radius:5px;font-size:17px;font-weight:500;cursor:pointer;transition:background .16s,color .16s,border-color .16s;font-family:Calibri,Carlito,Arial,sans-serif;background:#990033;color:#fff;border:1px solid #990033}.ds-primary:hover{background:#7d002a;border-color:#7d002a}.ds-primary:focus-visible{outline:2px solid #990033;outline-offset:4px;}.ds-primary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}",
       "refersTo": "button-primary"
     },
     {
@@ -2403,23 +2413,23 @@
       "kind": "button",
       "description": "Acción contextual de contorno blanco.",
       "html": "<button class=\"ds-secondary\">Exportar CSV</button>",
-      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:11px 16px;border-radius:5px;font-size:15px;font-weight:500;cursor:pointer;transition:background .16s,color .16s,border-color .16s;font-family:Calibri,Carlito,Arial,sans-serif;background:#fff;color:#352c30;border:1px solid #e2dbde}.ds-secondary:hover{border-color:#b791a0;background:#faf6f8}.ds-secondary:focus-visible{outline:2px solid #990033;outline-offset:4px;}.ds-secondary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:11px 16px;border-radius:5px;font-size:17px;font-weight:500;cursor:pointer;transition:background .16s,color .16s,border-color .16s;font-family:Calibri,Carlito,Arial,sans-serif;background:#fff;color:#352c30;border:1px solid #e2dbde}.ds-secondary:hover{border-color:#b791a0;background:#faf6f8}.ds-secondary:focus-visible{outline:2px solid #990033;outline-offset:4px;}.ds-secondary:disabled{opacity:.5;cursor:not-allowed}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}",
       "refersTo": "button-secondary"
     },
     {
       "name": "Filtro etiquetado",
       "kind": "input",
-      "description": "Campo nativo con etiqueta persistente.",
+      "description": "Dropdown compartido de 18px y altura mínima 50px, animado, con listbox en popover nativo, selección visible, teclado y cierre exterior.",
       "html": "<label class=\"ds-select\"><span>Severidad</span><select><option>Todos los niveles</option><option>Niveles 4 y 5</option><option>Nivel 5</option></select></label>",
-      "css": ".ds-select{display:grid;gap:5px;max-width:260px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-select span{font-size:13px;color:#70616a}.ds-select select{background:#fff;color:#352c30;border:1px solid #e2dbde;border-radius:4px;min-height:42px;padding:8px 24px 8px 11px;font-size:15px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-select select:focus-visible{outline:2px solid #990033;outline-offset:4px;}",
+      "css": ".ds-select{display:grid;gap:5px;max-width:260px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-select span{font-size:13px;color:#70616a}.ds-select select{background:#fff;color:#352c30;border:1px solid #e2dbde;border-radius:4px;min-height:50px;padding:8px 24px 8px 11px;font-size:18px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-select select:focus-visible{outline:2px solid #990033;outline-offset:4px;}",
       "refersTo": "filter-select"
     },
     {
       "name": "Navegación activa",
       "kind": "nav",
-      "description": "Destino actual en lateral o navegación superior.",
+      "description": "Navegación FEMSA de 18px, lateral ajustable/contraíble y panel móvil hasta 960px. Sin enlace a propuestas.",
       "html": "<nav class=\"ds-nav\" aria-label=\"Análisis\"><button aria-current=\"page\">Panorama general</button><button>Servidores</button></nav>",
-      "css": ".ds-nav{display:grid;gap:9px;max-width:230px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-nav button{min-height:50px;padding:15px 13px;border:0;border-radius:6px;background:transparent;color:#70616a;text-align:left;font-size:15px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-nav button:hover{background:#faf3f6;color:#990033}.ds-nav button[aria-current=page]{background:#f4e7ec;color:#990033;font-weight:600}.ds-nav button:focus-visible{outline:2px solid #990033;outline-offset:4px;}",
+      "css": ".ds-nav{display:grid;gap:9px;max-width:230px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-nav button{min-height:56px;padding:15px 13px;border:0;border-radius:6px;background:transparent;color:#70616a;text-align:left;font-size:18px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-nav button:hover{background:#faf3f6;color:#990033}.ds-nav button[aria-current=page]{background:#f4e7ec;color:#990033;font-weight:600}.ds-nav button:focus-visible{outline:2px solid #990033;outline-offset:4px;}",
       "refersTo": "navigation-active"
     },
     {
@@ -2473,7 +2483,7 @@
   ],
   "narrative": {
     "northStar": "Atlas de infraestructura",
-    "overview": "El dashboard local adopta la identidad FEMSA elegida por el usuario y combina la navegación operativa de V1 con la jerarquía ejecutiva de V3. El vino corporativo, el fondo cálido y las superficies blancas sostienen una lectura amplia de cortes importados. Cuatro cifras principales, preguntas descriptivas y análisis secundarios desplegables permiten investigar sin presentar todos los datos al mismo tiempo. La firma visual es un globo de puntos con marcadores blancos y referencias regionales explícitas en América. El usuario rechazó la tipografía pequeña, la densidad simultánea y el detalle lateral estrecho de la primera implementación.\n\nEl sistema se aplica al dashboard de `/`. Las 24 propuestas originales siguen en `/propuestas`: conservan ocho familias visuales y tres composiciones, con sus propios materiales y paletas. Los tokens `dashboard-*` describen la interfaz actual; los prefijos de familia y los componentes `comparator-*` documentan el comparador conservado. No intercambiar sus reglas de tipografía o cartografía.",
+    "overview": "El dashboard local adopta la identidad FEMSA elegida por el usuario y combina la navegación operativa de V1 con la jerarquía ejecutiva de V3. El vino corporativo, el fondo cálido y las superficies blancas sostienen una lectura amplia de cortes importados. Cuatro cifras principales, preguntas descriptivas y análisis secundarios desplegables permiten investigar sin presentar todos los datos al mismo tiempo. La firma visual es un globo de puntos con marcadores blancos y referencias regionales explícitas en América. El usuario rechazó la tipografía pequeña, la densidad simultánea y el detalle lateral estrecho de la primera implementación.\n\nEl sistema se aplica al dashboard de `/`. Las 24 propuestas originales siguen en `/propuestas`: conservan ocho familias visuales y tres composiciones, con sus propios materiales y paletas. Los tokens `dashboard-*` describen la interfaz actual; los prefijos de familia y los componentes `comparator-*` documentan el comparador conservado. No intercambiar sus reglas de tipografía o cartografía.\n\nLectura ampliada: celdas 20px, contexto 17px, IDs 19px y selectores 18px. Las filas completas abren el detalle. Navegación ajustable de 248–360px, contraíble a 88px, panel móvil, dropdowns animados y transición de contenido; sin enlace a propuestas originales.",
     "keyCharacteristics": [
       "Vino FEMSA y blanco sobre fondo cálido.",
       "Cuatro indicadores grandes, paneles suaves y secundarios desplegables.",

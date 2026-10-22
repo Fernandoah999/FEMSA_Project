@@ -208,16 +208,16 @@ typography:
     letterSpacing: -0.025em
   dashboard-title:
     fontFamily: Calibri, Carlito, Arial, sans-serif
-    fontSize: 21px
+    fontSize: 25px
     fontWeight: 500
     lineHeight: 1.4
   dashboard-body:
     fontFamily: Calibri, Carlito, Arial, sans-serif
-    fontSize: 16px
+    fontSize: 18px
     lineHeight: 1.5
   dashboard-label:
     fontFamily: Calibri, Carlito, Arial, sans-serif
-    fontSize: 15px
+    fontSize: 17px
     fontWeight: 500
   dashboard-metric:
     fontFamily: Calibri, Carlito, Arial, sans-serif
@@ -233,7 +233,7 @@ typography:
     letterSpacing: -0.03em
   dashboard-id:
     fontFamily: Atlas Mono, monospace
-    fontSize: 14px
+    fontSize: 19px
 rounded:
   button: 6px
   field: 5px
@@ -384,10 +384,10 @@ El dashboard hereda la voz corporativa disponible, con números tabulares. El t�
 
 ### Hierarchy
 
-- **Headline:** `dashboard-headline`; pasa a 32px hasta 1000px. La introducción conserva 16px, interlínea 1.6 y máximo 70ch.
+- **Headline:** `dashboard-headline`; pasa a 32px hasta 1000px. La introducción usa 18px, interlínea 1.6 y máximo 70ch.
 - **Title:** `dashboard-title`; secciones de panorama de 23px, preguntas de 21px (20px hasta 1250px y 22px en móvil), con peso 500.
-- **Body:** `dashboard-body`; tablas y selectores usan 15px, con metadatos y etiquetas de campo de 13–14px. Navegación móvil y algunas leyendas del globo usan 12px por su función secundaria y espacio disponible.
-- **Label:** `dashboard-label`; acciones principales de altura mínima 44px. Las explicaciones de preguntas usan 15–16px.
+- **Body:** `dashboard-body`; tablas de 20px, datos secundarios de 17px, cabeceras de 17px y dropdowns de 18px. La navegación usa 18px también en móvil; las leyendas secundarias del globo conservan su escala propia.
+- **Label:** `dashboard-label`; acciones principales de altura mínima 48px. Las explicaciones de preguntas usan 15–16px.
 - **Metric:** `dashboard-metric`; la primera cifra usa `dashboard-attention`. A partir de 1700px pasan a 56px y 72px; hasta 1250px, 43px y 57px; hasta 1000px, 40px y 52px; en móvil, 43px y 57px. Indicadores secundarios desplegados usan 44px.
 - **Identifier:** `dashboard-id` en enlaces de tabla. El encabezado de detalle usa la familia corporativa a 32px, peso 500 y ajuste de palabras largas; en móvil, 28px.
 
@@ -399,12 +399,12 @@ Los roles sin prefijo `dashboard-` pertenecen al comparador: Arial/Helvetica, en
 
 ## Layout
 
-El dashboard tiene lateral fijo de 248px, barra contextual de al menos 65px y contenido con máximo 1680px. La página usa 36px de margen interno horizontal y superior. La banda de cuatro métricas se organiza por divisores, sin tarjetas independientes. El panorama distribuye globo y preguntas en 1.7fr / 1fr, mínimo lateral 260px y separación 35px. La escena del globo tiene altura 470px. Los análisis secundarios se despliegan verticalmente; los paneles usan relleno horizontal de 26px.
+El dashboard tiene lateral de 280px ajustable entre 248 y 360px, contraíble a 88px, barra contextual de al menos 65px y contenido con máximo 1680px. La página usa 36px de margen interno horizontal y superior. La banda de cuatro métricas se organiza por divisores, sin tarjetas independientes. El panorama distribuye globo y preguntas en 1.7fr / 1fr, mínimo lateral 260px y separación 35px. La escena del globo tiene altura 470px. Los análisis secundarios se despliegan verticalmente; los paneles usan relleno horizontal de 26px.
 
 - A partir de 1700px aumenta el espacio superior a 45px y la escala de métricas.
-- Hasta 1250px el lateral baja a 220px, el espacio horizontal a 25px y el panorama a 1.5fr / 1fr; los pares de paneles se apilan.
-- Hasta 1000px el lateral es una banda de iconos de 78px; los filtros ampliados usan dos columnas.
-- Hasta 760px el lateral se vuelve navegación superior persistente con cinco destinos; página con 19px horizontales, métricas en 2 × 2, globo y preguntas apilados y escena de 355px. Importación y comparación se apilan. Las tablas se desplazan dentro de su contenedor, conservando columnas.
+- Hasta 1250px el espacio horizontal baja a 25px y el panorama a 1.5fr / 1fr; los pares de paneles se apilan.
+- Hasta 1000px los filtros ampliados usan dos columnas. Hasta 960px el lateral se sustituye por un panel modal abierto con Menú; se cierra al navegar, al pulsar Escape, al pulsar fuera o al volver a escritorio.
+- Hasta 760px la página usa 19px horizontales, métricas en 2 × 2, globo y preguntas apilados y escena de 355px. Importación y comparación se apilan. Las tablas se desplazan dentro de su contenedor, conservando columnas.
 - El detalle se centra hasta 1240px, con ancho de viewport menos 64px y alto de hasta 1000px o viewport menos 64px. En móvil ocupa todo el viewport. Resumen, contexto y hallazgos preceden a la ficha técnica; el encabezado y el cierre permanecen visibles al desplazar su contenido.
 
 El comparador en `/propuestas` mantiene su barra de 65px, máximo de 1920px, espacio de página de 28px y barras laterales específicas: Orbit 218px, Earth 190px, Pandemic 188px, IoT 190px, Territory 200px, Tracking 192px, Estrato 198px y FEMSA 224px. V1 usa observatorio con mapa dominante; V2, navegación compacta y retícula asimétrica; V3, navegación horizontal y relato estratégico con máximo de 1500px. Sus puntos de adaptación son 1700px, 1350px, 1100px y 760px; no sustituyen los del dashboard.
@@ -415,7 +415,7 @@ En el dashboard, los paneles blancos son planos, sin sombra. Las líneas cálida
 
 En el comparador, Orbit conserva volumen radial; Earth, textura terrestre en Canvas; Pandemic, halos coral; Territory, tres estratos desplazados; IoT, retícula y globo punteado; Tracking, líneas y rutas; Estrato, curvas ilustrativas; FEMSA, elevación discreta de tarjetas. Son recursos propios de esas propuestas archivadas.
 
-**The Flat Panel Rule.** Los paneles del dashboard se separan con blanco, fondo cálido y espacio; las sombras de superposición se reservan al diálogo y la notificación, y el globo conserva sus efectos de volumen propios.
+**The Flat Panel Rule.** Los paneles del dashboard se separan con blanco, fondo cálido y espacio; las sombras de superposición se reservan al diálogo, los dropdowns y la notificación, y el globo conserva sus efectos de volumen propios.
 
 ## Shapes
 
@@ -429,15 +429,15 @@ Primarios vino y secundarios blancos de contorno: mínimo 44px, relleno 11px 16p
 
 ### Inputs / Fields
 
-Diez selectores etiquetados más búsqueda componen once filtros compartidos. En panorama, región es el único selector inicial; «Ver todos los filtros» expone los demás y la búsqueda. Las vistas de registros mantienen los filtros operativos y el despliegue de filtros adicionales. Campos blancos, borde cálido, radio 4px y mínimo 42px; importación y comparación usan 44px. La búsqueda es una línea abierta con icono, etiqueta accesible y texto de ayuda. Se muestra el alcance y una acción de restablecimiento cuando hay filtros. Cambiar corte restablece el alcance; navegar entre vistas lo conserva.
+Diez selectores etiquetados más búsqueda componen once filtros compartidos. En panorama, región es el único selector inicial; «Ver todos los filtros» expone los demás y la búsqueda. Las vistas de registros mantienen los filtros operativos y el despliegue de filtros adicionales. Dropdowns compartidos de 18px y altura mínima 50px, con chevron animado, selección marcada y opciones en la capa popover del navegador. Se cierran al elegir, pulsar fuera, Escape o Tab. Flechas, Inicio/Fin, Enter y búsqueda por texto permiten usarlos con teclado. La posición se ajusta al viewport y el menú se desplaza sin recortarse en paneles. Los campos de importación conservan su entrada nativa. La búsqueda es una línea abierta con icono, etiqueta accesible y texto de ayuda. Se muestra el alcance y una acción de restablecimiento cuando hay filtros. Cambiar corte restablece el alcance; navegar entre vistas lo conserva.
 
 ### Navigation
 
-Cinco destinos: panorama, servidores, hallazgos, comparación y cargas; criterios del análisis como destino auxiliar. El actual usa tinte vino, peso 600 y `aria-current`. Iconos Lucide acompañan nombres visibles en escritorio y móvil; la banda intermedia de iconos conserva nombres accesibles. El enlace de salto lleva al contenido. «Ver propuestas originales» conduce a `/propuestas`.
+Cinco destinos: panorama, servidores, hallazgos, comparación y cargas; criterios del análisis como destino auxiliar. El actual usa tinte vino, peso 600 y `aria-current`. Iconos Lucide acompañan nombres de 18px. El modo contraído mantiene nombres accesibles y tooltip nativo. El separador ajusta el ancho por arrastre o con flechas e Inicio/Fin. En móvil, un diálogo nativo conserva el foco y lo devuelve a Menú al cerrar. El enlace de salto lleva al contenido. Se retiró «Ver propuestas originales» del dashboard. Cambiar de pestaña anima solo el contenido durante 240ms con desvanecimiento y desplazamiento de 8px; movimiento reducido lo desactiva.
 
 ### Chips / Cards
 
-La severidad se muestra como nivel numérico con punto y fondo semántico. Los paneles blancos agrupan un título de 21px, contexto opcional y acción contextual, con 26px de relleno horizontal. Las métricas son botones en banda: cada una conduce a registros coincidentes y conserva los filtros existentes; las de pendientes, nivel 4–5 y SLA estrechan el alcance de forma correspondiente. Una cifra cero deshabilita su acción. No reemplazar la banda por una colección de tarjetas elevadas.
+La severidad se muestra como nivel numérico con punto y fondo semántico. Los paneles blancos agrupan un título de 25px, contexto opcional y acción contextual, con 26px de relleno horizontal. Las métricas son botones en banda: cada una conduce a registros coincidentes y conserva los filtros existentes; las de pendientes, nivel 4–5 y SLA estrechan el alcance de forma correspondiente. Una cifra cero deshabilita su acción. No reemplazar la banda por una colección de tarjetas elevadas.
 
 ### Preguntas y despliegues
 
@@ -453,7 +453,7 @@ Marcadores y botones regionales seleccionan o deseleccionan el mismo filtro con 
 
 ### Tablas y detalle
 
-Tablas de lectura amplia, celdas de 15px, cabeceras de 14px, contexto de 13px, divisores suaves y hover tenue. IDs monoespaciados abren detalle; hay acciones de icono equivalentes. Inventario y hallazgos tienen páginas de 20 filas, ordenación y exportación del conjunto filtrado completo. Un vacío explica el alcance y permite restablecer.
+Tablas de lectura amplia, celdas de 20px, cabeceras de 17px, contexto de 17px e IDs monoespaciados de 19px, con filas de mayor altura. Toda la fila abre detalle; la acción nativa de icono mantiene el acceso con teclado y el foco resalta toda la fila. La selección de texto no dispara apertura. Los tamaños de lectura se conservan en móvil. Inventario y hallazgos tienen páginas de 20 filas, ordenación y exportación del conjunto filtrado completo. Un vacío explica el alcance y permite restablecer.
 
 El diálogo nativo centrado usa `showModal()`, un único encabezado con tipo e ID, cierre accesible y Escape. El servidor muestra resumen de pendientes, contexto operativo y hallazgos del alcance activo, con pestañas de pendientes/todos/remediados y paginación. Un hallazgo permite volver al servidor. Campos largos se ajustan; todos los campos del registro y sus nombres originales se conservan en «Ver ficha técnica completa», cerrada inicialmente. El contexto usa tres columnas en escritorio y dos en móvil; el resumen se apila en móvil.
 

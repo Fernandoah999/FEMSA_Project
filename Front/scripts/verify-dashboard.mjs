@@ -1,4 +1,4 @@
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { spawn, execFileSync } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -42,6 +42,15 @@ async function uploadApi(buffer, name, referenceDate = "2026-10-21", filename = 
   const response = await fetch(base + "/api/snapshots", { method: "POST", body: form });
   return { response, data: await response.json() };
 }
+async function navigate(page, name) {
+  const trigger = page.getByRole("button", { name: "Abrir menú de navegación", exact: true });
+  if (await trigger.isVisible()) await trigger.click();
+  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name, exact: typeof name === "string" }).click();
+}
+async function selectOption(page, name, value) {
+  await page.getByRole("combobox", { name, exact: true }).click();
+  await page.getByRole("listbox", { name, exact: true }).locator(`[role="option"][data-value=${JSON.stringify(value)}]`).click();
+}
 try {
   await waitForServer();
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -69,16 +78,62 @@ try {
   await page.getByRole("region", { name: "Indicadores del alcance" }).waitFor();
   assert.ok((await page.getByRole("region", { name: "Indicadores del alcance" }).innerText()).includes("2,875"));
   checks.push("SQLite history and records survive page reload");
+  assert.equal(await page.getByRole("link", { name: "Ver propuestas originales" }).count(), 0);
+  await page.getByRole("button", { name: "Contraer menú lateral" }).click();
+  assert.ok((await page.getByRole("complementary", { name: "Barra lateral" }).boundingBox()).width <= 89);
+  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Servidores", exact: true }).click();
+  await page.getByRole("heading", { name: "Inventario de servidores", exact: true }).waitFor();
+  await capture(page, "sidebar-collapsed.png");
+  await page.getByRole("button", { name: "Expandir menú lateral" }).click();
+  const handle = page.getByRole("separator", { name: "Ancho del menú lateral" });
+  await handle.focus(); await page.keyboard.press("ArrowRight");
+  assert.equal(await handle.getAttribute("aria-valuenow"), "296");
+  const grip = await handle.boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down(); await page.mouse.move(320, grip.y + grip.height / 2, { steps: 4 }); await page.mouse.up();
+  assert.equal(await handle.getAttribute("aria-valuenow"), "320");
+  await handle.focus(); await page.keyboard.press("Home"); await page.keyboard.press("ArrowRight"); await page.keyboard.press("ArrowRight");
+  await navigate(page, "Panorama general");
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileMenu = page.getByRole("button", { name: "Abrir menú de navegación", exact: true });
+  await mobileMenu.click();
+  await page.getByRole("dialog", { name: "Atlas de infraestructura" }).waitFor({ state: "visible" });
+  await capture(page, "sidebar-mobile.png");
+  await page.keyboard.press("Escape");
+  await expect(mobileMenu).toHaveAttribute("aria-expanded", "false");
+  assert.ok(await mobileMenu.evaluate(el => el === document.activeElement));
+  await navigate(page, "Servidores");
+  assert.equal(await page.getByRole("dialog", { name: "Atlas de infraestructura" }).count(), 0);
+  await navigate(page, "Panorama general");
+  const regionDropdown = page.getByRole("combobox", { name: "Región", exact: true });
+  await regionDropdown.click();
+  const popup = page.getByRole("listbox", { name: "Región", exact: true });
+  const popupBounds = await popup.boundingBox();
+  assert.ok(popupBounds.x >= 0 && popupBounds.x + popupBounds.width <= 390);
+  await page.keyboard.press("End"); await page.keyboard.press("Enter");
+  assert.equal(await regionDropdown.getAttribute("data-value"), "REGION_SOUTH");
+  await regionDropdown.click(); await page.keyboard.press("Escape");
+  await expect(regionDropdown).toHaveAttribute("aria-expanded", "false");
+  await regionDropdown.click(); await page.getByRole("heading", { name: "¿Dónde debemos actuar primero?" }).click();
+  await expect(regionDropdown).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: /^Restablecer \(/ }).click();
+  await page.setViewportSize({ width: 1440, height: 1050 });
+  await regionDropdown.click();
+  await capture(page, "dropdown-desktop.png");
+  await page.keyboard.press("Escape");
+  checks.push("Collapsible/resizable desktop sidebar, keyboard resize, mobile drawer/Escape/focus restoration and auto-close, original proposals link removed");
+  checks.push("Animated dropdowns: mobile viewport bounds, keyboard End/Enter, Escape, outside click and filtering preserve expected values");
+
   await page.getByRole("button", { name: /Pendientes de nivel 4–5/ }).click();
-  assert.equal(await page.getByRole("combobox", { name: "Severidad", exact: true }).inputValue(), "4_5");
+  assert.equal(await page.getByRole("combobox", { name: "Severidad", exact: true }).getAttribute("data-value"), "4_5");
   await page.getByRole("region", { name: "Hallazgos del alcance" }).waitFor();
   assert.ok((await page.getByRole("region", { name: "Hallazgos del alcance" }).innerText()).includes("561 registros"));
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Panorama general", exact: true }).click();
+  await navigate(page, "Panorama general");
   await page.getByRole("button", { name: /Pendientes fuera de SLA/ }).click();
   assert.ok((await page.getByRole("region", { name: "Hallazgos del alcance" }).innerText()).includes("257 registros"));
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Panorama general", exact: true }).click();
+  await navigate(page, "Panorama general");
   checks.push("KPI drilldowns preserve scope: 561 high-severity pending records and 257 overdue pending records");
   await page.locator('[data-globe-ready="true"][data-motion="paused"]').waitFor();
   assert.equal(await page.locator('details[open]').count(), 0, "Secondary analysis must start collapsed");
@@ -93,29 +148,32 @@ try {
   await page.setViewportSize({ width: 1440, height: 1050 });
   await page.getByRole("button", { name: /Filtrar región Norte/ }).focus();
   await page.keyboard.press("Enter");
-  assert.equal(await page.getByRole("combobox", { name: "Región", exact: true }).inputValue(), "REGION_NORTH");
+  assert.equal(await page.getByRole("combobox", { name: "Región", exact: true }).getAttribute("data-value"), "REGION_NORTH");
   assert.ok((await page.getByRole("region", { name: "Indicadores del alcance" }).innerText()).includes("131"));
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
   await page.locator("summary").filter({ hasText: "¿Qué regiones acumulan mayor severidad?" }).click();
   await page.getByRole("button", { name: /Norte, nivel 5:/ }).click();
   await page.getByRole("button", { name: "Más filtros", exact: true }).click();
-  assert.equal(await page.getByRole("combobox", { name: "Severidad", exact: true }).inputValue(), "5");
-  assert.equal(await page.getByRole("combobox", { name: "Región", exact: true }).inputValue(), "REGION_NORTH");
+  assert.equal(await page.getByRole("combobox", { name: "Severidad", exact: true }).getAttribute("data-value"), "5");
+  assert.equal(await page.getByRole("combobox", { name: "Región", exact: true }).getAttribute("data-value"), "REGION_NORTH");
   await page.getByRole("button", { name: /Pendientes de nivel 4–5/ }).click();
   assert.ok((await page.getByRole("region", { name: "Hallazgos del alcance" }).innerText()).includes("90 registros"), "KPI must preserve Norte + severity 5 instead of broadening to levels 4+5");
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Panorama general", exact: true }).click();
+  await navigate(page, "Panorama general");
   await page.getByRole("button", { name: "Más filtros", exact: true }).click();
-  await page.getByRole("combobox", { name: "Estado", exact: true }).selectOption("REMEDIATED");
+  await selectOption(page, "Estado", "REMEDIATED");
   const closedText = await page.getByRole("region", { name: "Indicadores del alcance" }).innerText();
   assert.ok(closedText.includes("0"));
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
   checks.push("Keyboard map selection, heatmap cross-filter, status and reset update the analysis");
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Servidores", exact: true }).click();
+  await navigate(page, "Servidores");
   await page.getByRole("button", { name: "Página siguiente" }).click();
   await page.getByRole("textbox", { name: "Buscar en el inventario" }).fill("srv-0001");
   assert.equal(await page.locator("tbody tr").count(), 1);
-  await page.getByRole("button", { name: "Ver SRV-0001", exact: true }).click();
+  const row = page.locator("tbody tr").first();
+  const tableType = await row.evaluate(el => ({ cell: getComputedStyle(el.cells[3]).fontSize, secondary: getComputedStyle(el.querySelector("small")).fontSize, id: getComputedStyle(el.querySelector("td span")).fontSize }));
+  assert.ok(parseFloat(tableType.cell) >= 20 && parseFloat(tableType.secondary) >= 17 && parseFloat(tableType.id) >= 19, JSON.stringify(tableType));
+  await row.locator("td").nth(3).click();
   await page.getByRole("dialog").waitFor({ state: "visible" });
   const detailBox = await page.getByRole("dialog").boundingBox();
   assert.ok(detailBox.width >= 1100, "Server detail must occupy a large workspace, not a narrow drawer");
@@ -132,6 +190,14 @@ try {
   await page.getByRole("textbox", { name: "Buscar en el inventario" }).fill("no-existe-999");
   await page.getByRole("heading", { name: "Sin servidores coincidentes" }).waitFor();
   await page.getByRole("button", { name: "Restablecer filtros", exact: true }).click();
+  await page.getByRole("textbox", { name: "Buscar en el inventario" }).fill("srv-0001");
+  await page.getByRole("button", { name: "Ver SRV-0001", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("dialog").waitFor({ state: "visible" });
+  await page.getByRole("region", { name: "Hallazgos del servidor" }).locator("tbody tr").first().locator("td").nth(2).click();
+  await page.getByRole("heading", { name: /^Hallazgo FND-/ }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.getByRole("textbox", { name: "Buscar en el inventario" }).fill("");
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: "Exportar CSV" }).click();
   const downloaded = await downloading;
@@ -139,6 +205,12 @@ try {
   assert.equal(exported.split("\r\n").length, 247, "CSV must include all 246 servers, not just one page");
   await capture(page, "servers-desktop.png");
   checks.push("Pagination, case-insensitive search, empty state, source field detail, Escape and full filtered CSV export");
+  await navigate(page, "Hallazgos");
+  await page.locator("tbody tr").first().locator("td").nth(4).click();
+  await page.getByRole("heading", { name: /^Hallazgo FND-/ }).waitFor();
+  await page.keyboard.press("Escape");
+  await capture(page, "findings-desktop.png");
+  checks.push("20px table cells, 17px secondary text, full server/finding rows and nested finding rows open detail; native detail button remains keyboard accessible");
   const bad = await uploadApi(Buffer.from("not an excel"), "Invalid");
   assert.equal(bad.response.status, 422);
   assert.equal((await (await fetch(base + "/api/snapshots")).json()).length, 1);
@@ -161,7 +233,7 @@ def change(root):
     set_cell(root, 'A3454', 'FND-NEW-TEST')
 sys.stdout.buffer.write(mutate(change))
 `], { maxBuffer: 5 * 1024 * 1024 });
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: /Cargas de datos/ }).click();
+  await navigate(page, "Cargas de datos");
   await page.getByLabel("Archivo Excel", { exact: true }).setInputFiles({ name: "revision.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: fixture });
   await page.getByLabel("Nombre del corte", { exact: true }).fill("Revisión de prueba");
   await page.getByLabel("Fecha de referencia", { exact: true }).fill("2026-10-22");
@@ -169,8 +241,8 @@ sys.stdout.buffer.write(mutate(change))
   await page.getByRole("region", { name: "Indicadores del alcance" }).waitFor();
   if (await page.getByRole("button", { name: "Cerrar notificación" }).isVisible()) await page.getByRole("button", { name: "Cerrar notificación" }).click();
   assert.equal((await (await fetch(base + "/api/snapshots")).json()).length, 2);
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Comparar cortes", exact: true }).click();
-  await page.getByRole("combobox", { name: "Corte de referencia", exact: true }).selectOption(baseline.id);
+  await navigate(page, "Comparar cortes");
+  await selectOption(page, "Corte de referencia", baseline.id);
   await page.getByRole("heading", { name: "Cambios en los hallazgos" }).waitFor();
   for (const name of ["Pasaron a remediados", "Volvieron a pendientes", "IDs nuevos", "IDs ausentes"]) {
     const button = page.getByRole("button", { name: new RegExp(name) });
@@ -183,21 +255,30 @@ sys.stdout.buffer.write(mutate(change))
   checks.push("Upload second XLSX through UI and compare: one resolved, one reopened, one new ID and one absent ID");
   await page.setViewportSize({ width: 390, height: 844 });
   for (const name of ["Panorama general", "Servidores", "Hallazgos", "Comparar cortes", "Cargas de datos"]) {
-    await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: new RegExp(`^${name}`) }).click();
+    await navigate(page, name);
     await noOverflow(page, `${name} mobile`);
   }
   await capture(page, "imports-mobile.png");
-  await page.getByRole("combobox", { name: "Corte activo", exact: true }).selectOption(baseline.id);
+  await selectOption(page, "Corte activo", baseline.id);
   await page.getByRole("heading", { name: "Observaciones del corte activo" }).waitFor();
   assert.ok((await page.getByRole("region", { name: "Observaciones del corte activo" }).innerText()).includes("222"));
   checks.push("All five screens fit 390px and persisted source cut can be selected again");
   await page.setViewportSize({ width: 1440, height: 1050 });
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Panorama general", exact: true }).click();
+  await navigate(page, "Panorama general");
   await page.getByRole("button", { name: "¿Cuáles llevan más tiempo sin arreglar?", exact: false }).click();
-  assert.equal(await page.getByRole("combobox", { name: "Orden de registros" }).inputValue(), "age");
+  assert.equal(await page.getByRole("combobox", { name: "Orden de registros" }).getAttribute("data-value"), "age");
   assert.ok((await page.locator("tbody tr").first().innerText()).includes("Más de 180 días"));
-  await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("button", { name: "Panorama general", exact: true }).click();
+  await navigate(page, "Panorama general");
+  const motionBefore = await page.locator("main").evaluate(el => getComputedStyle(el).animationName);
+  assert.equal(motionBefore, "none", "Reduced motion must disable tab transitions");
   await page.emulateMedia({ reducedMotion: "no-preference" });
+  await navigate(page, "Hallazgos");
+  assert.ok((await page.locator("main").evaluate(el => getComputedStyle(el).animationName)).includes("page-enter"));
+  await page.getByRole("combobox", { name: "Orden de registros" }).click();
+  assert.ok((await page.getByRole("listbox", { name: "Orden de registros" }).getByRole("option").first().evaluate(el => getComputedStyle(el).animationName)).includes("option-enter"));
+  await page.keyboard.press("Escape");
+  await navigate(page, "Panorama general");
+  checks.push("Tab transitions and dropdown option animations enabled in normal motion and disabled for reduced motion");
   await page.locator('[data-motion="running"]').waitFor();
   const globe = page.getByRole("img", { name: /Globo 3D de puntos/ });
   await globe.scrollIntoViewIfNeeded();

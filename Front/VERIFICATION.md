@@ -2,6 +2,14 @@
 
 Fecha local: 22 octubre 2026. Alcance: dashboard local académico con importación XLSX, persistencia, filtros y comparación. No auditoría de infraestructura real ni consulta CVE.
 
+## Lectura ampliada, navegación y dropdowns
+
+Solicitud posterior del usuario: ampliar especialmente servidores/hallazgos, abrir detalle desde toda la fila, retirar el enlace a propuestas, adaptar sidebar y dropdowns aportados, y suavizar los cambios de pestaña. Implementación: celdas de 20px, datos secundarios de 17px, IDs de 19px, cabeceras de 17px y dropdowns de 18px; las filas de servidor, hallazgo y hallazgos dentro del detalle comparten apertura por celda, con botón nativo accesible y resaltado de foco. Sidebar ajustable de 248–360px, contraíble a 88px y diálogo móvil hasta 960px. Los selectores del dashboard comparten listbox en popover nativo, cierre exterior y teclado. El contenido entra en 240ms, con movimiento reducido respetado.
+
+Después del último cambio de implementación, `npm run check` terminó correctamente (generación de tipos, TypeScript y producción). `npm run test:dashboard` terminó con exit 0 y 13 grupos aprobados, sin errores de consola. Se midieron los tamaños reales de las celdas y se probaron apertura desde celdas distintas al ID, hallazgos anidados y botón por teclado; contraer/expandir, ajustar ancho por teclado y arrastre, panel móvil y restauración del foco; selección con Fin/Enter, Escape, clic fuera, límites de viewport de los dropdowns; animaciones normales y movimiento reducido. Los flujos de carga manual, comparación, persistencia y exportación siguen aprobados. El cierre nativo se comprueba esperando su evento asíncrono, sin asumir que el atributo ARIA cambie antes del evento `close`.
+
+El detector de layout se ejecutó antes y después: cero hallazgos en ambos pases. Se inspeccionaron capturas de servidores, hallazgos, dropdown abierto, sidebar contraído y panel móvil a 1440, 2048 y 390px. Se amplió el ancho mínimo de filtros de escritorio y se permitió texto en dos líneas en móvil para evitar recortar las opciones iniciales. Las capturas y `verification.json` están en `.impeccable/review/dashboard/` (ignorados por Git). La verificación usa SQLite temporal y el fixture privado local; no se publican Excel ni bases.
+
 ## Distribución sin datos
 
 Por petición del usuario se retiró el Excel del árbol publicado y de todos los commits de `main`. Los Excel y la carpeta de material local quedan ignorados. El archivo original y SQLite se conservaron únicamente en el equipo del usuario. Se eliminaron las acciones de ejemplo de la bienvenida, el formulario y la API; cada instalación comienza vacía y recibe un archivo seleccionado por el usuario.

@@ -1,0 +1,23 @@
+.root { display:inline-flex; vertical-align:middle; min-width:0; max-width:100%; width:100%; }
+.trigger { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; min-width:0; min-height:50px; padding:11px 14px; border:1px solid var(--line,#e2dbde); border-radius:6px; background:var(--surface,#fff); color:var(--ink,#352c30); font:inherit; font-size:18px; line-height:1.4; text-align:left; cursor:pointer; }
+.trigger > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.trigger svg { flex-shrink:0; transition:transform .2s ease-in-out; color:var(--muted,#70616a); }
+.trigger[aria-expanded="true"] { border-color:var(--accent,#990033); }
+.trigger[aria-expanded="true"] svg { transform:rotate(180deg); }
+.trigger:hover:not(:disabled) { border-color:var(--accent,#990033); }
+.trigger:focus-visible { outline:2px solid var(--accent,#990033); outline-offset:3px; }
+.trigger:disabled { cursor:not-allowed; opacity:.5; }
+.menu { position:fixed; inset:auto; margin:0; padding:6px; border:1px solid var(--line,#e2dbde); border-radius:10px; background:var(--surface,#fff); color:var(--ink,#352c30); box-shadow:0 12px 32px rgb(40 15 27 / .16); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--accent,#990033) transparent; font-family:inherit; opacity:0; translate:0 -6px; transition:opacity .18s ease-out, translate .18s ease-out, display .18s allow-discrete, overlay .18s allow-discrete; }
+.menu:popover-open { opacity:1; translate:0 0; }
+.menu[data-direction="up"] { translate:0 6px; }
+.menu[data-direction="up"]:popover-open { translate:0 0; }
+@starting-style { .menu:popover-open { opacity:0; translate:0 -6px; } }
+.option { display:flex; align-items:center; justify-content:space-between; gap:18px; min-height:48px; padding:11px 12px; border-radius:5px; font-size:18px; line-height:1.45; cursor:pointer; overflow-wrap:anywhere; }
+.option + .option { margin-top:3px; }
+.option svg { color:var(--accent,#990033); flex-shrink:0; }
+.option[aria-selected="true"] { font-weight:600; }
+.option[data-active="true"] { background:color-mix(in srgb,var(--accent,#990033) 9%,var(--surface,#fff)); }
+.option[aria-disabled="true"] { opacity:.5; cursor:not-allowed; }
+.menu:popover-open .option { animation:option-enter .18s ease-out backwards; }
+@keyframes option-enter { from { opacity:0; transform:translateX(-5px); } to { opacity:1; transform:translateX(0); } }
+@media(prefers-reduced-motion:reduce) { .trigger svg,.menu { transition:none; }.menu:popover-open .option { animation:none; } }

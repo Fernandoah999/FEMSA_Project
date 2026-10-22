@@ -16,3 +16,8 @@ Los archivos de procedencia `.webp.json` y los metadatos PNG se generaron median
 - `src/lib/globe-land.json`: 6,923 puntos muestreados de la cartografía Natural Earth ya existente en `public/data/countries.json`. Se reproduce con `node scripts/build-globe-land.mjs`; no requiere conexiones externas. Las marcas numéricas del archivo distinguen EUA, México y Brasil para iluminar su superficie.
 - `src/components/route-globe.tsx` y `route-globe-utils/globe.ts`: adaptación del componente Route Globe pegado por el usuario en la conversación. Se completaron las utilidades ausentes y se adaptaron rutas, puntos, pausa, arrastre y movimiento reducido al dashboard. No se añadió un paquete externo.
 - La correspondencia Norte → EUA, Centro → México y Sur → Brasil fue solicitada por el usuario. Es una referencia del simulador, no una ubicación contenida en el Excel. Las líneas, cometas y ondas de puntos son animaciones ilustrativas; no son tráfico ni ataques detectados.
+
+## Navegación y selectores
+
+- `inventory-sidebar.tsx`: adaptación de los ejemplos de sidebar, panel móvil y navegación contraíble aportados por el usuario. Conserva las rutas del dashboard y agrega ajuste de ancho con puntero y teclado; usa componentes React y diálogo nativo, sin dependencias nuevas.
+- `animated-dropdown.tsx` y su módulo CSS: adaptación del Animated Dropdown atribuido a @emerald-ui, versión 1.0.0, licencia MIT, https://emerald-ui.com, compartido por el usuario. Sustituye enlaces de demostración por selección de valores, conserva apertura animada y cierre exterior, y agrega navegación con teclado, selección activa y capa popover nativa para evitar recortes. No requiere Framer Motion ni Tailwind.

@@ -23,6 +23,8 @@ Abrir http://localhost:3040. El servidor se limita a `127.0.0.1`; no hay autenti
 5. Explorar tablas paginadas, abrir todos los campos del registro y exportar los registros filtrados a CSV; la exportación incluye todas las páginas.
 6. En **Comparar cortes**, elegir otra carga como referencia. Se separan IDs nuevos, ausentes, cambios a remediado, regreso a pendientes y cambios de servidor. Un ID ausente no equivale a remediación.
 
+La navegación lateral se puede contraer y ajustar de ancho; en móvil se abre con **Menú**. Todas las filas de servidores y hallazgos abren su detalle al pulsar cualquier celda; el botón de detalle permite hacerlo con teclado. Los filtros, cortes y orden usan dropdowns animados con flechas, Inicio/Fin, Enter, Escape y cierre al pulsar fuera. Las pestañas tienen una transición breve, desactivada con movimiento reducido.
+
 La identidad combina FEMSA V1 y V3, con tipografía mayor, cuatro indicadores principales y análisis secundarios desplegables. La ficha de servidor usa un espacio amplio en escritorio y pantalla completa móvil. Las 24 propuestas anteriores se conservan en http://localhost:3040/propuestas?style=femsa&v=1 y siguen usando los datos ficticios propios del mockup.
 
 ## Contrato de importación
