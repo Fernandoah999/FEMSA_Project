@@ -15,7 +15,7 @@ Herramienta local de análisis del inventario académico de servidores y vulnera
 Evaluadores del proyecto académico FEMSA y analistas que exploran datos ficticios de infraestructura y riesgo.
 
 ## Capabilities and Constraints
-Interfaz en español, escritorio y móvil. Sin cuentas ni inicio de sesión. Persistencia en este equipo y servidor ligado a localhost. Hojas requeridas: Servidores (17 columnas) y Vulnerabilidades (20). Cada carga conserva fecha de referencia y observaciones. El ejemplo no tiene fecha conocida. Sin fuentes CVE ni versiones técnicas. Las bandas no se convierten en fechas o cantidades exactas.
+Interfaz en español, escritorio y móvil. Sin cuentas ni inicio de sesión. Persistencia en este equipo y servidor ligado a localhost. Hojas requeridas: Servidores (17 columnas) y Vulnerabilidades (20). Cada carga conserva fecha de referencia y observaciones. La instalación empieza vacía y cada usuario carga sus propios Excel; no se distribuyen archivos de datos. Sin fuentes CVE ni versiones técnicas. Las bandas no se convierten en fechas o cantidades exactas.
 
 ## Brand Commitments
 El usuario eligió FEMSA y autorizó mejorar un híbrido de V1 y V3: navegación lateral operativa y lectura ejecutiva sobria, blanco y vino #990033, logo aportado y fuentes existentes. Las 24 propuestas anteriores se conservan en /propuestas. El usuario sustituyó el esquema territorial por el componente Route Globe que aportó: puntos blancos y destellos, Norte en EUA, Centro en México y Sur en Brasil como referencias visuales explícitas. Estas ubicaciones no provienen del Excel. Solicitó tipografía mayor, menos cifras simultáneas, análisis secundarios desplegables, preguntas descriptivas y ficha de servidor amplia.

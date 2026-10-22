@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ImportError, importSnapshot, listSnapshots } from "@/lib/inventory-store";
 export const runtime = "nodejs";
 export async function GET() {
@@ -10,11 +8,6 @@ export async function POST(request: Request) {
   try {
     if (+(request.headers.get("content-length") || 0) > 21 * 1024 * 1024) throw new ImportError(["La carga supera el límite de 20 MB."], 413);
     const form = await request.formData();
-    if (form.get("example") === "true") {
-      const filename = "Dataset Académico Parches en Servidores.xlsx";
-      const buffer = await readFile(path.join(process.cwd(), "..", "OneDrive_1_10-6-2026", filename));
-      return Response.json(await importSnapshot(buffer, filename, "Dataset académico · ejemplo", null), { status: 201 });
-    }
     const file = form.get("file");
     if (!(file instanceof File)) throw new ImportError(["Selecciona un archivo Excel .xlsx."]);
     const date = form.get("referenceDate");

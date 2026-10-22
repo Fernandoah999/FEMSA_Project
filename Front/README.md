@@ -16,8 +16,8 @@ Abrir http://localhost:3040. El servidor se limita a `127.0.0.1`; no hay autenti
 
 ## Usar el dashboard
 
-1. Cargar el Excel académico de ejemplo o abrir **Cargas de datos** para seleccionar otro archivo.
-2. Indicar nombre y fecha que representan los datos. La fecha de importación se registra por separado. El ejemplo no tiene fecha de referencia porque el archivo no la especifica.
+1. Pulsar **Importar mi Excel** o abrir **Cargas de datos** para seleccionar un archivo propio. La instalación empieza vacía; no se distribuyen archivos Excel ni bases de datos.
+2. Indicar nombre y fecha que representan los datos. La fecha de importación se registra por separado.
 3. Seleccionar el corte activo. Combinar filtros por región, ambiente, sistema operativo, estado, severidad, exposición, criticidad, categoría, antigüedad y SLA, además de búsqueda.
 4. Seleccionar una zona del atlas o una celda del heatmap para filtrar. El globo 3D usa la referencia visual solicitada: Norte en EUA, Centro en México y Sur en Brasil. No son ubicaciones contenidas en el Excel. Sus puntos blancos, rutas y destellos son ilustrativos; se puede pausar, arrastrar o centrar América.
 5. Explorar tablas paginadas, abrir todos los campos del registro y exportar los registros filtrados a CSV; la exportación incluye todas las páginas.
@@ -28,7 +28,7 @@ La identidad combina FEMSA V1 y V3, con tipografía mayor, cuatro indicadores pr
 ## Contrato de importación
 
 - `.xlsx`, hasta 20 MB; máximo 10,000 servidores y 100,000 hallazgos. Contenido descomprimido hasta 150 MB y 3,000 entradas ZIP.
-- Hojas `Servidores` y `Vulnerabilidades`. Se admite variación de mayúsculas en los nombres de hoja. Encabezados originales dentro de las primeras 25 filas; en el ejemplo están en la fila 4.
+- Hojas `Servidores` y `Vulnerabilidades`. Se admite variación de mayúsculas en los nombres de hoja. Encabezados originales dentro de las primeras 25 filas.
 - Las 17 columnas de servidores y las 20 de vulnerabilidades se enumeran en `scripts/read-inventory.py`, junto con las categorías admitidas.
 - Se rechazan campos vacíos, categorías no admitidas, IDs duplicados, referencias inexistentes y fórmulas en las columnas del contrato. Debe existir al menos un servidor; cero hallazgos es válido.
 - Se conservan como observaciones las diferencias de volumen declarado, criticidad, orden de rangos de antigüedad y SLA incumplido en remediados. Columnas adicionales se ignoran con aviso.
@@ -45,16 +45,20 @@ Variables opcionales: `FEMSA_DATA_DIR` para la carpeta de datos, `FEMSA_PYTHON` 
 
 - `GET /api/snapshots`: metadata de cargas, más recientes primero.
 - `GET /api/snapshots/[id]`: metadata y registros de un corte.
-- `POST /api/snapshots`: multipart con file, name y referenceDate (YYYY-MM-DD). Con example=true importa el archivo académico de la carpeta hermana OneDrive_1_10-6-2026, sin fecha supuesta.
+- `POST /api/snapshots`: multipart con file, name y referenceDate (YYYY-MM-DD). Requiere un archivo aportado por el usuario; no hay carga de ejemplo.
 
 ## Verificación
 
 ```bash
 npm run check
+
+# Opcionales: requieren el fixture privado descrito debajo.
 npm run test:inventory
 npm run test:dashboard
 npm run test:ui
 ```
+
+Las suites `test:inventory` y `test:dashboard` dependen del archivo original privado en `../OneDrive_1_10-6-2026/Dataset Académico Parches en Servidores.xlsx`, excluido de Git. Sus expectativas corresponden a ese fixture; no se ejecutan con un Excel arbitrario. Este archivo no es necesario para usar la app.
 
 `check` genera los tipos de Next.js y ejecuta TypeScript y compilación de producción, también en una instalación limpia. `test:inventory` incluye 10 casos del lector (incluidos rechazos de datos dentro de Excel válidos) y controles de métricas, filtros, comparación y CSV. `test:dashboard` inicia producción en 127.0.0.1:3041 con una base temporal: prueba carga real, recarga, filtros, mapa por teclado, heatmap, tablas, CSV completo, errores, duplicados y comparación de dos Excel, en escritorio 1440px y móvil 390px. También comprueba tipografía mayor, análisis inicialmente cerrados, ficha amplia, orden por antigüedad y píxeles Canvas durante animación/pausa/arrastre. No altera las cargas del usuario. Evidencia en `.impeccable/review/dashboard/`.
 

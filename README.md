@@ -2,7 +2,7 @@
 
 Aplicación **fullstack local** para analizar un inventario de servidores y sus vulnerabilidades a partir de archivos Excel. Su propósito es ayudar a responder **qué requiere atención primero, dónde se acumulan los hallazgos y qué cambió entre dos revisiones**, con filtros, indicadores y detalle de cada registro.
 
-Es un proyecto académico construido con **datos ficticios**. El repositorio incluye un Excel de ejemplo con 246 servidores y 3,450 hallazgos para probar el flujo completo.
+Es un proyecto académico. El repositorio distribuye el frontend, el backend y sus recursos: **no incluye archivos Excel ni bases de datos**. Cada persona carga sus propios archivos con el formato admitido.
 
 ## Qué permite hacer
 
@@ -68,16 +68,6 @@ FEMSA_PYTHON=python npm run dev
 
 La misma variable se puede usar con `npm start`. Puedes asignarle la ruta completa de Python si no está en el `PATH`.
 
-## Primera prueba con el Excel incluido
-
-1. En la pantalla inicial, pulsa **Cargar Excel de ejemplo**.
-2. La app valida y guarda el archivo incluido en `OneDrive_1_10-6-2026/`.
-3. Explora los cuatro indicadores principales. Al seleccionar uno se abren los registros correspondientes.
-4. Usa las preguntas de priorización, selecciona una región o despliega los análisis secundarios.
-5. En **Servidores**, abre un registro para consultar su contexto, hallazgos y ficha técnica completa.
-
-El ejemplo se registra **sin fecha de referencia**, porque su contenido no indica una fecha de corte. No necesita configuración adicional.
-
 ## Cargar y comparar tus archivos
 
 1. Entra a **Cargas de datos** y selecciona o arrastra un `.xlsx` de hasta **20 MB**.
@@ -86,7 +76,7 @@ El ejemplo se registra **sin fecha de referencia**, porque su contenido no indic
 4. Cambia de corte con **Corte activo**.
 5. Con dos cargas guardadas, abre **Comparar cortes** y elige el corte de referencia.
 
-Cada Excel debe conservar las dos hojas y sus **17 columnas de servidores y 20 de vulnerabilidades**. Los encabezados pueden estar dentro de las primeras 25 filas; en el ejemplo están en la fila 4. Se rechazan campos requeridos vacíos, categorías no admitidas, IDs duplicados, servidores inexistentes y fórmulas en las columnas del contrato.
+Cada Excel debe conservar las dos hojas y sus **17 columnas de servidores y 20 de vulnerabilidades**. Los encabezados pueden estar dentro de las primeras 25 filas. Se rechazan campos requeridos vacíos, categorías no admitidas, IDs duplicados, servidores inexistentes y fórmulas en las columnas del contrato.
 
 La comparación necesita identificadores `ServerID` y `FindingID` estables entre archivos. Un hallazgo que deja de aparecer se presenta como **ausente**, no se da por remediado. El mismo archivo para la misma fecha no se guarda dos veces.
 
@@ -126,10 +116,9 @@ Desde `Front/`:
 
 ```bash
 npm run check
-npm run test:inventory
 ```
 
-Las pruebas del inventario esperan el comando `python3`. Si tu sistema solo ofrece `python`, necesitarás que `python3` resuelva al mismo intérprete para ejecutar esta suite opcional. Para el uso normal del dashboard basta con `FEMSA_PYTHON`, como se explica arriba.
+Las suites opcionales `npm run test:inventory` y `npm run test:dashboard` usan un archivo de referencia privado que **no se distribuye en este repositorio**. Para ejecutarlas, proporciona localmente el archivo original en `OneDrive_1_10-6-2026/Dataset Académico Parches en Servidores.xlsx`; comprueban los conteos y cambios conocidos de ese fixture y no admiten cualquier Excel como sustituto. No es necesario para iniciar o usar la aplicación. Las pruebas del inventario esperan el comando `python3`. Si tu sistema solo ofrece `python`, necesitarás que `python3` resuelva al mismo intérprete para ejecutar esta suite opcional. Para el uso normal del dashboard basta con `FEMSA_PYTHON`, como se explica arriba.
 
 Las pruebas de navegador son opcionales y requieren Chromium. En el equipo de desarrollo se utiliza `/usr/bin/chromium`:
 
@@ -144,16 +133,14 @@ Este comando requiere una compilación previa (`npm run check`), inicia un servi
 ```text
 FEMSA_Project/
 ├── README.md
-├── Front/
-│   ├── src/app/                  # Páginas y API local
-│   ├── src/components/           # Dashboard, detalle y globo
-│   ├── src/lib/                  # Filtros, métricas y persistencia
-│   ├── public/                   # Recursos locales
-│   ├── scripts/                  # Lector Excel y comprobaciones
-│   ├── data/                     # SQLite local; ignorado por Git
-│   └── package.json
-└── OneDrive_1_10-6-2026/
-    └── Dataset Académico Parches en Servidores.xlsx
+└── Front/
+    ├── src/app/                  # Páginas y API local
+    ├── src/components/           # Dashboard, detalle y globo
+    ├── src/lib/                  # Filtros, métricas y persistencia
+    ├── public/                   # Recursos locales
+    ├── scripts/                  # Lector Excel y comprobaciones
+    ├── data/                     # SQLite local; ignorado por Git
+    └── package.json
 ```
 
 Las 24 propuestas visuales del prototipo original siguen disponibles en **[http://localhost:3040/propuestas?style=femsa&v=1](http://localhost:3040/propuestas?style=femsa&v=1)**. El dashboard actual está en `/`.
@@ -162,4 +149,4 @@ Las 24 propuestas visuales del prototipo original siguen disponibles en **[http:
 
 La herramienta analiza los hallazgos entregados por el Excel: **no escanea servidores, no instala parches y no consulta fuentes CVE**. La severidad conserva los niveles 1–5 del archivo. Las edades son rangos, por lo que no se calculan días exactos ni tiempos medios de remediación. Los campos sin diccionario tienen interpretaciones provisionales visibles en **Criterios del análisis**.
 
-El repositorio incluye el código, los recursos necesarios y el Excel ficticio utilizado por la app. Excluye bases locales, dependencias instaladas, compilaciones y las presentaciones u otros archivos de trabajo ajenos al flujo del dashboard. La procedencia de los recursos visuales se documenta en [ASSETS.md](Front/ASSETS.md).
+El repositorio incluye el código y los recursos necesarios de la aplicación. Los archivos Excel, bases locales, dependencias instaladas, compilaciones, presentaciones y otros archivos de trabajo quedan excluidos por `.gitignore`. La procedencia de los recursos visuales se documenta en [ASSETS.md](Front/ASSETS.md).

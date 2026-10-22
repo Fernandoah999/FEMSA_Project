@@ -53,7 +53,12 @@ try {
   await page.getByRole("heading", { name: "Tu primer corte empieza aquí." }).waitFor();
   await noOverflow(page, "empty desktop");
   await capture(page, "empty.png");
-  await page.getByRole("button", { name: "Cargar Excel de ejemplo", exact: true }).click();
+  assert.equal(await page.getByRole("button", { name: /ejemplo/i }).count(), 0);
+  await page.getByRole("button", { name: "Importar mi Excel", exact: true }).click();
+  await page.getByLabel("Archivo Excel", { exact: true }).setInputFiles({ name: "inventory.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: source });
+  await page.getByLabel("Nombre del corte", { exact: true }).fill("Inventario de prueba");
+  await page.getByLabel("Fecha de referencia", { exact: true }).fill("2026-10-21");
+  await page.getByRole("button", { name: "Validar y guardar corte" }).click();
   await page.getByRole("region", { name: "Indicadores del alcance" }).waitFor();
   await page.getByRole("button", { name: "Cerrar notificación" }).click();
   const metricText = await page.getByRole("region", { name: "Indicadores del alcance" }).innerText();
@@ -137,9 +142,13 @@ try {
   const bad = await uploadApi(Buffer.from("not an excel"), "Invalid");
   assert.equal(bad.response.status, 422);
   assert.equal((await (await fetch(base + "/api/snapshots")).json()).length, 1);
-  const example = new FormData(); example.set("example", "true");
-  const duplicate = await fetch(base + "/api/snapshots", { method: "POST", body: example });
-  assert.equal(duplicate.status, 409);
+  const removedExample = new FormData(); removedExample.set("example", "true");
+  const removedResponse = await fetch(base + "/api/snapshots", { method: "POST", body: removedExample });
+  assert.equal(removedResponse.status, 422, "The removed example action must require an uploaded file");
+  assert.ok((await removedResponse.json()).errors.includes("Selecciona un archivo Excel .xlsx."));
+  const duplicate = await uploadApi(source, "Duplicado");
+  assert.equal(duplicate.response.status, 409);
+  assert.equal((await (await fetch(base + "/api/snapshots")).json()).length, 1);
   checks.push("Malformed XLSX and duplicate snapshot rejected without storing a new cut");
 
   const fixture = execFileSync("python3", ["-c", `
