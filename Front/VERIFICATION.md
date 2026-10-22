@@ -2,6 +2,12 @@
 
 Fecha local: 22 octubre 2026. Alcance: dashboard local académico con importación XLSX, persistencia, filtros y comparación. No auditoría de infraestructura real ni consulta CVE.
 
+## Preparación para GitHub e instalación limpia
+
+Se exportó el árbol versionado a una carpeta temporal sin `node_modules`, `.next`, `next-env.d.ts` ni base SQLite. La instalación con `npm ci` y los comandos `npm run check`, `npm run test:inventory` y `npm run test:dashboard` terminaron con exit 0. Se confirmó que la cartografía local y el Excel ficticio quedan incluidos y que la base local, las compilaciones y los archivos de trabajo ajenos al dashboard quedan excluidos.
+
+La instalación inicial detectó tres dependencias con avisos. Se actualizó Next.js a 16.4.2, sharp a 0.35.5 y source-map-js a 1.2.2 mediante versiones compatibles. Tras la actualización, `npm audit` informó cero vulnerabilidades conocidas y se repitieron los tres comandos anteriores: todos con exit 0, las 10 pruebas Python y los nueve grupos de navegador aprobados. Esto documenta los avisos conocidos del registro al verificar, no una auditoría integral de seguridad.
+
 ## Refinamiento solicitado por el usuario
 
 La revisión posterior del usuario pidió mayor tipografía, menos información simultánea, ficha de servidor amplia y el globo Route Globe aportado. La interfaz actual conserva los KPIs: cuatro principales grandes y los análisis secundarios en desplegables inicialmente cerrados. El detalle tiene hasta 1240px de ancho y ocupa todo el viewport móvil. Las preguntas de prioridad abren registros, incluida antigüedad ordenada por bandas.
