@@ -1,0 +1,5 @@
+Copyright 2017 IBM Corp. and Information Architects GmbH. All rights reserved.
+
+Information Architects Inc.
+
+Mike Abbink, Paul van der Laan, Pieter van Rosmalen, Oliver Reichenstein

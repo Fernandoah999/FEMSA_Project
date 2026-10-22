@@ -1,0 +1,9 @@
+node_modules/
+.next/
+*.tsbuildinfo
+.impeccable/review/
+test-results/
+/data/
+next-env.d.ts
+__pycache__/
+*.pyc
