@@ -2,9 +2,17 @@
 
 Fecha local: 22 octubre 2026. Alcance: dashboard local académico con importación XLSX, persistencia, filtros y comparación. No auditoría de infraestructura real ni consulta CVE.
 
+## Distribución sin datos
+
+Por petición del usuario se retiró el Excel del árbol publicado y de todos los commits de `main`. Los Excel y la carpeta de material local quedan ignorados. El archivo original y SQLite se conservaron únicamente en el equipo del usuario. Se eliminaron las acciones de ejemplo de la bienvenida, el formulario y la API; cada instalación comienza vacía y recibe un archivo seleccionado por el usuario.
+
+Se exportó el código sin Excel ni SQLite a una carpeta temporal y `npm run check` terminó con exit 0. Después se proporcionó una copia privada del fixture exclusivamente para las suites opcionales: `npm run test:inventory` y `npm run test:dashboard` terminaron con exit 0 (10 pruebas Python, controles de lógica y nueve grupos de navegador). La carga inicial ahora usa el formulario de archivo, nombre y fecha. El caso negativo envía la antigua acción `example=true` sin archivo y confirma respuesta 422 sin guardar un corte. Se inspeccionaron las capturas de bienvenida en escritorio e importación móvil; no hay botones de ejemplo ni desbordamiento. Las suites dependen de un fixture privado no distribuido, como indican ambos README.
+
+La comprobación de objetos alcanzables desde `main` no encontró Excel ni bases de datos. La API de GitHub confirmó que el árbol publicado contiene únicamente `.gitignore`, `README.md` y `Front/`. GitHub aún conserva acceso al archivo mediante un SHA anterior que ya no pertenece a la rama; la purga residual depende de GitHub Support y no se declara completada.
+
 ## Preparación para GitHub e instalación limpia
 
-Se exportó el árbol versionado a una carpeta temporal sin `node_modules`, `.next`, `next-env.d.ts` ni base SQLite. La instalación con `npm ci` y los comandos `npm run check`, `npm run test:inventory` y `npm run test:dashboard` terminaron con exit 0. Se confirmó que la cartografía local y el Excel ficticio quedan incluidos y que la base local, las compilaciones y los archivos de trabajo ajenos al dashboard quedan excluidos.
+En la publicación inicial se exportó el árbol versionado a una carpeta temporal sin `node_modules`, `.next`, `next-env.d.ts` ni base SQLite. La instalación con `npm ci` y los comandos `npm run check`, `npm run test:inventory` y `npm run test:dashboard` terminaron con exit 0. La cartografía local quedó incluida. El Excel que se incluyó inicialmente se retiró posteriormente, como documenta la sección anterior; la base local, las compilaciones y los archivos de trabajo ajenos al dashboard quedaron excluidos desde el principio.
 
 La instalación inicial detectó tres dependencias con avisos. Se actualizó Next.js a 16.4.2, sharp a 0.35.5 y source-map-js a 1.2.2 mediante versiones compatibles. Tras la actualización, `npm audit` informó cero vulnerabilidades conocidas y se repitieron los tres comandos anteriores: todos con exit 0, las 10 pruebas Python y los nueve grupos de navegador aprobados. Esto documenta los avisos conocidos del registro al verificar, no una auditoría integral de seguridad.
 
