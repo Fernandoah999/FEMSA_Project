@@ -21,3 +21,8 @@ Los archivos de procedencia `.webp.json` y los metadatos PNG se generaron median
 
 - `inventory-sidebar.tsx`: adaptación de los ejemplos de sidebar, panel móvil y navegación contraíble aportados por el usuario. Conserva las rutas del dashboard y agrega ajuste de ancho con puntero y teclado; usa componentes React y diálogo nativo, sin dependencias nuevas.
 - `animated-dropdown.tsx` y su módulo CSS: adaptación del Animated Dropdown atribuido a @emerald-ui, versión 1.0.0, licencia MIT, https://emerald-ui.com, compartido por el usuario. Sustituye enlaces de demostración por selección de valores, conserva apertura animada y cierre exterior, y agrega navegación con teclado, selección activa y capa popover nativa para evitar recortes. No requiere Framer Motion ni Tailwind.
+
+- `analysis-accordion.tsx` y su CSS: adaptación del acordeón Radix compartido por el usuario, con la dependencia `@radix-ui/react-accordion` (MIT). Referencia de API: https://www.radix-ui.com/primitives/docs/components/accordion. Se conserva la interacción de un único panel expandido y se adapta a la identidad FEMSA sin Tailwind ni utilidades adicionales.
+
+- `text-decoder.tsx`: adaptación del TextDecoder compartido por el usuario para cifras. Conserva los separadores numéricos, ejecuta una decodificación finita por cambio de alcance y respeta movimiento reducido; los nombres accesibles siempre contienen el valor real.
+- `src/lib/globe-countries.json`: contornos de EUA, México y Brasil derivados de la misma cartografía Natural Earth ya atribuida. Se regenera junto a los puntos con `node scripts/build-globe-land.mjs`. El resaltado proyecta esos contornos sobre el globo; son referencias del simulador, no ubicaciones de servidores.

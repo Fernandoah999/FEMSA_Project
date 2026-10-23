@@ -17,4 +17,5 @@ for (let i = 0; i < count; i++) {
   dots.push([+lon.toFixed(3), +lat.toFixed(3), region]);
 }
 await writeFile("src/lib/globe-land.json", JSON.stringify(dots));
+await writeFile("src/lib/globe-countries.json", JSON.stringify({ type: "FeatureCollection", features: targets }));
 console.log(`Saved ${dots.length} land points; country reference points:`, targets.map((_, i) => dots.filter(d => d[2] === i + 1).length));

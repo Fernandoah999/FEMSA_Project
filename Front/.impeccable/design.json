@@ -2344,9 +2344,9 @@
         "purpose": "Esqueleto durante lectura del corte; se elimina con movimiento reducido."
       },
       {
-        "name": "dashboard-disclosure",
-        "value": "transform .18s ease-out",
-        "purpose": "Indicador de apertura; se elimina con movimiento reducido."
+        "name": "dashboard-accordion",
+        "value": "height 0 → --radix-accordion-content-height, 240ms abrir / 200ms cerrar; chevron 200ms",
+        "purpose": "Cinco análisis Radix; un panel abierto a la vez; movimiento reducido sin animación."
       },
       {
         "name": "dashboard-globe",
@@ -2362,6 +2362,11 @@
         "name": "dashboard-dropdown",
         "value": "opacity/translate .18s ease-out; chevron .2s ease-in-out; option-enter .18s con retraso máximo 126ms",
         "purpose": "Apertura/cierre y opciones de los selectores del dashboard. Desactivada con movimiento reducido."
+      },
+      {
+        "name": "dashboard-metric-decoder",
+        "value": "620ms, caracteres numéricos, intervalo visual 45ms y final estable",
+        "purpose": "Repetir una vez al cambiar/revisitar región o volver a Panorama; cancelar al cambiar de alcance o activar movimiento reducido."
       }
     ],
     "breakpoints": [
@@ -2479,11 +2484,19 @@
       "html": "<section class=\"ds-detail\" aria-label=\"Detalle del registro\"><header><h2>Servidor SRV-0001</h2><button aria-label=\"Cerrar detalle\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button></header><dl><div><dt>Región</dt><dd>Norte</dd></div></dl><details><summary>Ver ficha técnica completa</summary><p>Campos originales del Excel</p></details></section>",
       "css": ".ds-detail{background:#fff;color:#352c30;width:min(1240px,calc(100vw - 64px));max-height:calc(100dvh - 64px);overflow:auto;padding:34px 40px;border-radius:12px;font-family:Calibri,Carlito,Arial,sans-serif;}.ds-detail header{position:sticky;top:0;background:white;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid #e2dbde;padding-bottom:20px;margin-bottom:18px}.ds-detail h2{font-family:Calibri,Carlito,Arial,sans-serif;font-size:32px;font-weight:500;color:#781432;margin:0;overflow-wrap:anywhere;min-width:0}.ds-detail button{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:transparent;border:1px solid transparent;border-radius:4px;color:#70616a;cursor:pointer}.ds-detail button:hover{background:#f5e9ee;color:#990033}.ds-detail button:focus-visible{outline:2px solid #990033;outline-offset:4px;}.ds-detail dl{margin:0}.ds-detail dl>div{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:12px 0;border-bottom:1px solid #f0e9ed;font-size:17px}.ds-detail dt{color:#70616a}.ds-detail small{display:block;font-size:10px;margin-top:5px}.ds-detail dd{margin:0;overflow-wrap:anywhere}.ds-detail details{border-top:1px solid #e2dbde;padding-top:23px;margin-top:24px}.ds-detail summary{font-size:17px;color:#990033;cursor:pointer}.ds-detail summary:focus-visible{outline:2px solid #990033;outline-offset:4px}.ds-detail details p{font-size:15px;color:#70616a}@media(max-width:760px){.ds-detail{width:100%;max-height:100dvh;padding:24px 19px;border-radius:0}.ds-detail h2{font-size:28px}}",
       "refersTo": "record-dialog"
+    },
+    {
+      "name": "Análisis desplegable FEMSA",
+      "kind": "custom",
+      "description": "Acordeón Radix adaptado: cinco análisis, uno abierto, teclado, cabecera grande y contenido animado. Complementarios y calidad bajo las preguntas.",
+      "html": "<section class=\"ds-analysis\"><h2>¿Qué regiones acumulan mayor severidad?</h2><p>Mapa de calor y distribución de niveles 1–5.</p></section>",
+      "css": ".ds-analysis{border:2px solid #e2dbde;border-radius:10px;background:#fff;padding:22px 24px;color:#352c30;font-family:Calibri,Carlito,Arial,sans-serif}.ds-analysis h2{font-size:23px;font-weight:500;margin:0}.ds-analysis p{font-size:17px;color:#70616a;margin:8px 0 0}",
+      "refersTo": "analysis-accordion"
     }
   ],
   "narrative": {
     "northStar": "Atlas de infraestructura",
-    "overview": "El dashboard local adopta la identidad FEMSA elegida por el usuario y combina la navegación operativa de V1 con la jerarquía ejecutiva de V3. El vino corporativo, el fondo cálido y las superficies blancas sostienen una lectura amplia de cortes importados. Cuatro cifras principales, preguntas descriptivas y análisis secundarios desplegables permiten investigar sin presentar todos los datos al mismo tiempo. La firma visual es un globo de puntos con marcadores blancos y referencias regionales explícitas en América. El usuario rechazó la tipografía pequeña, la densidad simultánea y el detalle lateral estrecho de la primera implementación.\n\nEl sistema se aplica al dashboard de `/`. Las 24 propuestas originales siguen en `/propuestas`: conservan ocho familias visuales y tres composiciones, con sus propios materiales y paletas. Los tokens `dashboard-*` describen la interfaz actual; los prefijos de familia y los componentes `comparator-*` documentan el comparador conservado. No intercambiar sus reglas de tipografía o cartografía.\n\nLectura ampliada: celdas 20px, contexto 17px, IDs 19px y selectores 18px. Las filas completas abren el detalle. Navegación ajustable de 248–360px, contraíble a 88px, panel móvil, dropdowns animados y transición de contenido; sin enlace a propuestas originales.",
+    "overview": "El dashboard local adopta la identidad FEMSA elegida por el usuario y combina la navegación operativa de V1 con la jerarquía ejecutiva de V3. El vino corporativo, el fondo cálido y las superficies blancas sostienen una lectura amplia de cortes importados. Cuatro cifras principales, preguntas descriptivas y análisis secundarios desplegables permiten investigar sin presentar todos los datos al mismo tiempo. La firma visual es un globo de puntos con marcadores blancos y referencias regionales explícitas en América. El usuario rechazó la tipografía pequeña, la densidad simultánea y el detalle lateral estrecho de la primera implementación.\n\nEl sistema se aplica al dashboard de `/`. Las 24 propuestas originales siguen en `/propuestas`: conservan ocho familias visuales y tres composiciones, con sus propios materiales y paletas. Los tokens `dashboard-*` describen la interfaz actual; los prefijos de familia y los componentes `comparator-*` documentan el comparador conservado. No intercambiar sus reglas de tipografía o cartografía.\n\nLectura ampliada: celdas 20px, contexto 17px, IDs 19px y selectores 18px. Las filas completas abren el detalle. Navegación ajustable de 248–360px, contraíble a 88px, panel móvil, dropdowns animados y transición de contenido; sin enlace a propuestas originales.\n\nLos cinco análisis usan acordeones Radix de cabecera grande. Indicadores complementarios y calidad ocupan el área bajo las preguntas. Los KPIs decodifican durante 620ms por cambio de región o regreso a Panorama, con valor final estable y movimiento reducido. El país de referencia seleccionado tiene relleno vino, contorno blanco y puntos brillantes sobre el resto atenuado.",
     "keyCharacteristics": [
       "Vino FEMSA y blanco sobre fondo cálido.",
       "Cuatro indicadores grandes, paneles suaves y secundarios desplegables.",

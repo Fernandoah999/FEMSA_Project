@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
-import { drawGlobe, landDots, rotate, slerp, toVec, type Vec3 } from "./route-globe-utils/globe";
+import { drawGlobe, drawSelectedRegion, landDots, rotate, slerp, toVec, type Vec3 } from "./route-globe-utils/globe";
 import styles from "./route-globe.module.css";
 
 export const REFERENCE_PLACES = [
@@ -22,6 +22,7 @@ export function RouteGlobe({ selected, onSelect, counts }: { selected: string; o
   const markers = useRef<(HTMLButtonElement | null)[]>([]);
   const [paused, setPaused] = useState(false), [reset, setReset] = useState(0);
   const [ready, setReady] = useState(false);
+  const activePlace = REFERENCE_PLACES.find(place => place.id === selected);
   const camera = useRef({ yaw: -85 * Math.PI / 180, tilt: 12 * Math.PI / 180 });
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce)");
@@ -32,6 +33,10 @@ export function RouteGlobe({ selected, onSelect, counts }: { selected: string; o
   useEffect(() => {
     camera.current = { yaw: -85 * Math.PI / 180, tilt: 12 * Math.PI / 180 };
   }, [reset]);
+  useEffect(() => {
+    const place = REFERENCE_PLACES.find(place => place.id === selected);
+    camera.current = place ? { yaw: place.lon * Math.PI / 180, tilt: place.lat * Math.PI / 180 } : { yaw: -85 * Math.PI / 180, tilt: 12 * Math.PI / 180 };
+  }, [selected]);
   useEffect(() => {
     const el = host.current, cv = canvas.current, ctx = cv?.getContext("2d");
     if (!el || !cv || !ctx) return;
@@ -46,9 +51,10 @@ export function RouteGlobe({ selected, onSelect, counts }: { selected: string; o
       light.addColorStop(0, "#432439"); light.addColorStop(1, "#21131e");
       ctx.fillStyle = light; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = "#735367"; ctx.globalAlpha = .22; ctx.lineWidth = .7; ctx.stroke(); ctx.globalAlpha = 1;
+      drawSelectedRegion(ctx, { cx, cy, r, ...camera.current }, region);
       drawGlobe(ctx, dots, { cx, cy, r, ...camera.current }, time, region, paused, HUBS);
       for (const route of ROUTES) {
-        if (region && route.region !== 0 && route.region !== region) continue;
+        if (region && route.region !== region) continue;
         const points = route.points.map(p => project(p.v, p.lift));
         ctx.strokeStyle = "#f5d8e7"; ctx.lineWidth = .8;
         for (let k = 0; k < 32; k++) { const a = points[k], b = points[k + 1]; if (a.z < 0 && b.z < 0) continue; ctx.globalAlpha = .16; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
@@ -66,11 +72,12 @@ export function RouteGlobe({ selected, onSelect, counts }: { selected: string; o
       });
       ctx.globalAlpha = 1;
       cv.dataset.renderMode = paused ? "paused" : "running";
+      cv.dataset.selectedRegion = selected || "all";
     };
     const tick = (now: number) => {
       raf = 0; if (!alive || !visible || document.hidden || paused) return;
       const dt = last ? Math.min(.05, (now - last) / 1000) : .016; last = now; time += dt;
-      if (!dragging) { camera.current.yaw += velocity * dt; velocity *= Math.pow(.02, dt); if (now - idle > 6000) camera.current.yaw += .025 * dt; }
+      if (!dragging) { camera.current.yaw += velocity * dt; velocity *= Math.pow(.02, dt); if (!region && now - idle > 6000) camera.current.yaw += .025 * dt; }
       draw(); raf = requestAnimationFrame(tick);
     };
     const start = () => { if (!alive || !visible || document.hidden) return; draw(); if (!paused && !raf) { last = 0; raf = requestAnimationFrame(tick); } };
@@ -86,10 +93,11 @@ export function RouteGlobe({ selected, onSelect, counts }: { selected: string; o
     size(); setReady(true);
     return () => { alive = false; cancelAnimationFrame(raf); ro.disconnect(); io.disconnect(); document.removeEventListener("visibilitychange", visibility); cv.removeEventListener("pointerdown", down); cv.removeEventListener("pointermove", move); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); };
   }, [paused, selected, reset]);
-  return <div className={styles.globe} data-globe-ready={ready ? "true" : "false"} data-motion={paused ? "paused" : "running"}>
+  return <div className={styles.globe} data-globe-ready={ready ? "true" : "false"} data-motion={paused ? "paused" : "running"} data-selected-region={selected || "all"}>
     <div className={styles.controls}><button aria-label={paused ? "Reanudar animación del globo" : "Pausar animación del globo"} onClick={() => setPaused(!paused)}>{paused ? <Play size={16} /> : <Pause size={16} />}{paused ? "Reanudar" : "Pausar"}</button><button onClick={() => setReset(r => r + 1)}><RotateCcw size={16} />Centrar América</button></div>
     <div className={styles.stage} ref={host}>
-      <canvas ref={canvas} role="img" aria-label="Globo 3D de puntos con referencias en EUA, México y Brasil. Destellos visuales sobre cada país." />
+      <canvas ref={canvas} role="img" aria-label={`Globo 3D de puntos con referencias en EUA, México y Brasil. ${activePlace ? `Región ${activePlace.name} seleccionada, referencia en ${activePlace.country}, delimitada y resaltada.` : "Todas las regiones. Destellos visuales sobre cada país."}`} />
+      {activePlace && <div className={styles.selection} role="status"><strong>{activePlace.name} seleccionada</strong><span>{activePlace.country} · referencia del simulador</span></div>}
       {REFERENCE_PLACES.map((p, i) => <button key={p.id} ref={el => { markers.current[i] = el; }} className={`${styles.pin} ${styles[`pin${i}`]}`} aria-label={`Filtrar región ${p.name}, ${counts[i]} hallazgos pendientes`} aria-pressed={selected === p.id} onClick={() => onSelect(selected === p.id ? "" : p.id)}><i /><span>{p.name}<small>{p.country}</small></span><em>{counts[i].toLocaleString("es-MX")} pendientes</em></button>)}
     </div>
     <div className={styles.regionButtons} aria-label="Seleccionar región del globo">{REFERENCE_PLACES.map(p => <button key={p.id} aria-pressed={selected === p.id} onClick={() => onSelect(selected === p.id ? "" : p.id)}>{p.name}<span>{p.country}</span></button>)}</div>

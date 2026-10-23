@@ -18,3 +18,9 @@ FINISH: Gate real, navegador escritorio/móvil, prueba de animación/pausa/arras
 
 ## Ajuste de lectura y navegación
 Solicitud posterior: celdas principales 20px, contexto 17px, IDs 19px, cabeceras 17px, filtros y dropdowns 18px; conservar esos tamaños en móvil. La fila completa abre el registro y el botón nativo de detalle conserva el acceso con teclado. Sidebar expandido de 280px, ancho ajustable entre 248 y 360px, contraído de 88px y panel modal móvil hasta 960px. No se muestra el enlace a propuestas originales. Los selectores de filtros, cortes y orden comparten dropdown animado con teclado y cierre exterior. Cambiar de pestaña anima únicamente el contenido durante 240ms y restablece su desplazamiento; movimiento reducido desactiva esas animaciones.
+
+## Panorama con acordeón Radix
+Los cinco análisis secundarios usan el componente Radix compartido por el usuario, con cabecera de 23px, descripción de 17px, borde de 2px y tinte vino al abrir. Solo uno puede permanecer abierto. Se aprovecha el área bajo las preguntas para colocar indicadores complementarios y calidad del corte; los tres análisis más amplios conservan todo el ancho debajo del globo y las preguntas. El área de calidad existe también sin observaciones, explicando el resultado de validación. No se agregan KPIs ni cifras decorativas para llenar espacio. Apertura/cierre suaves y teclado; movimiento reducido respetado.
+
+## Cifras y selección regional
+Los cuatro KPIs reproducen una decodificación numérica finita de 620ms al cambiar de región y al montar de nuevo Panorama. No hay ciclo permanente. Los nombres accesibles conservan los valores reales y movimiento reducido fija las cifras inmediatamente. El país de referencia seleccionado se centra, tiene relleno vino, contorno blanco de 2.1px y puntos mayores, mientras el resto se atenúa. Se muestra su etiqueta seleccionada y se conserva la aclaración de referencia ilustrativa.

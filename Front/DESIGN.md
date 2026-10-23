@@ -251,6 +251,7 @@ rounded:
   dashboard-nav: 6px
   dashboard-panel: 12px
   dashboard-dropzone: 7px
+  dashboard-accordion: 10px
 spacing:
   control-y: 10px
   control-x: 14px
@@ -331,6 +332,11 @@ components:
   import-dropzone:
     rounded: '{rounded.dashboard-dropzone}'
     padding: 25px
+  analysis-accordion:
+    backgroundColor: '{colors.dashboard-surface}'
+    textColor: '{colors.dashboard-ink}'
+    rounded: '{rounded.dashboard-accordion}'
+    padding: 22px 24px
   record-dialog:
     backgroundColor: '{colors.dashboard-surface}'
     textColor: '{colors.dashboard-ink}'
@@ -399,7 +405,7 @@ Los roles sin prefijo `dashboard-` pertenecen al comparador: Arial/Helvetica, en
 
 ## Layout
 
-El dashboard tiene lateral de 280px ajustable entre 248 y 360px, contraíble a 88px, barra contextual de al menos 65px y contenido con máximo 1680px. La página usa 36px de margen interno horizontal y superior. La banda de cuatro métricas se organiza por divisores, sin tarjetas independientes. El panorama distribuye globo y preguntas en 1.7fr / 1fr, mínimo lateral 260px y separación 35px. La escena del globo tiene altura 470px. Los análisis secundarios se despliegan verticalmente; los paneles usan relleno horizontal de 26px.
+El dashboard tiene lateral de 280px ajustable entre 248 y 360px, contraíble a 88px, barra contextual de al menos 65px y contenido con máximo 1680px. La página usa 36px de margen interno horizontal y superior. La banda de cuatro métricas se organiza por divisores, sin tarjetas independientes. El panorama distribuye globo y preguntas en 1.7fr / 1fr, mínimo lateral 260px y separación 35px. La escena del globo tiene altura 470px. Los indicadores complementarios y calidad se sitúan bajo las preguntas con separación de 28px; los tres análisis amplios quedan debajo del globo y las preguntas. En móvil, ambos bloques se apilan. Los acordeones usan relleno de 24px, cabecera de 23px y descripción de 17px; en móvil, 22px y relleno 18px. Los paneles interiores no agregan otra superficie ni marco.
 
 - A partir de 1700px aumenta el espacio superior a 45px y la escala de métricas.
 - Hasta 1250px el espacio horizontal baja a 25px y el panorama a 1.5fr / 1fr; los pares de paneles se apilan.
@@ -437,15 +443,17 @@ Cinco destinos: panorama, servidores, hallazgos, comparación y cargas; criterio
 
 ### Chips / Cards
 
-La severidad se muestra como nivel numérico con punto y fondo semántico. Los paneles blancos agrupan un título de 25px, contexto opcional y acción contextual, con 26px de relleno horizontal. Las métricas son botones en banda: cada una conduce a registros coincidentes y conserva los filtros existentes; las de pendientes, nivel 4–5 y SLA estrechan el alcance de forma correspondiente. Una cifra cero deshabilita su acción. No reemplazar la banda por una colección de tarjetas elevadas.
+La severidad se muestra como nivel numérico con punto y fondo semántico. Los paneles blancos agrupan un título de 25px, contexto opcional y acción contextual, con 26px de relleno horizontal. Las métricas son botones en banda: cada una conduce a registros coincidentes y conserva los filtros existentes; las de pendientes, nivel 4–5 y SLA estrechan el alcance de forma correspondiente. Una cifra cero deshabilita su acción. Las cuatro cifras principales adaptan TextDecoder: caracteres numéricos transitorios durante 620ms, conservando comas y tamaño tabular, hasta fijar el valor real. Se repite al cambiar de región, regresar a una región o volver a Panorama; no se repite continuamente. Cambios rápidos cancelan la animación anterior, y movimiento reducido muestra el valor final de inmediato. El nombre accesible del KPI conserva siempre el conteo real. No reemplazar la banda por una colección de tarjetas elevadas.
 
 ### Preguntas y despliegues
 
-Las preguntas explican la decisión antes de mostrar cifras adicionales. Las acciones hacia críticos, plazos y antigüedad conducen a los registros correspondientes; antigüedad ordena por rangos reportados, sin inventar fechas exactas. Cuatro bloques nativos `details` contienen prioridades, severidad, antigüedad/remediación e indicadores secundarios; un quinto de calidad aparece cuando el corte tiene observaciones. Comienzan cerrados, con resumen legible e indicador de apertura. Ningún indicador se elimina.
+Las preguntas explican la decisión antes de mostrar cifras adicionales. Las acciones hacia críticos, plazos y antigüedad conducen a los registros correspondientes; antigüedad ordena por rangos reportados, sin inventar fechas exactas. Cinco secciones Radix adaptan el acordeón compartido por el usuario: bordes de 2px, fondo blanco, cabecera vino tenue al abrir y chevron giratorio. Comienzan cerradas y permiten un solo análisis abierto a la vez. Las flechas, Inicio/Fin y Enter/Espacio navegan y abren las secciones. La altura se anima durante 240ms al abrir y 200ms al cerrar, con movimiento reducido respetado. Ningún indicador se elimina. Los indicadores complementarios y la calidad del corte ocupan el área bajo las preguntas, junto al globo; prioridades, severidad y antigüedad/remediación mantienen todo el ancho debajo del conjunto. La calidad también explica cuando no hay diferencias detectadas.
 
 ### Globo y matriz
 
 El globo Canvas adapta el RouteGlobe aportado por el usuario: tierra punteada, tres marcadores blancos, rutas curvas con cometas y ondas que iluminan EUA, México y Brasil. Norte → EUA, Centro → México y Sur → Brasil es la correspondencia explícita para el simulador; no se infiere del Excel. La explicación desplegable aclara que líneas y destellos son ilustrativos, sin representar tráfico ni ataques detectados.
+
+La selección centra el país de referencia y lo distingue con relleno vino, contorno blanco de 2.1px, puntos más grandes y brillantes y una etiqueta persistente. El resto de la tierra y los marcadores se atenúan; las rutas visibles pertenecen a la referencia seleccionada. El giro automático se detiene mientras hay una región seleccionada y se conserva el arrastre manual. Los contornos proceden de `src/lib/globe-countries.json`, derivados de Natural Earth; no se convierten en geografía real del inventario.
 
 Los puntos se leen de `src/lib/globe-land.json`: 6,923 muestras de Natural Earth derivadas del `public/data/countries.json` existente mediante `scripts/build-globe-land.mjs`. `route-globe-utils/globe.ts` proyecta y dibuja puntos y rutas; no hay nueva textura, imagen raster, servicio de mapas ni paquete externo. La procedencia completa queda en `ASSETS.md`.
 
@@ -465,7 +473,7 @@ La bienvenida sin cargas ofrece una única acción: importar el Excel propio. No
 
 Las ocho familias por tres versiones siguen formando 24 propuestas en `/propuestas`. Conservan contexto de pantalla, URL de estilo/versión/pantalla, favoritos locales, galería con «Referencia visual» y detalle lateral de 470px. Sus mapas originales usan Natural Earth y recursos atribuidos en `ASSETS.md`; el globo del dashboard usa geometría Canvas y muestras locales. Los valores, DEMO-CVE, curvas y CSV de esas propuestas son sintéticos. Esa condición describe el comparador; los conteos del dashboard proceden de cada archivo académico cargado. No hay consulta CVE ni autenticación en el dashboard actual. La atribución de logo, fuente, cartografía, texturas e imágenes sigue en `ASSETS.md`.
 
-La implementación observada está en `src/components/inventory-dashboard.tsx`, `inventory-record-detail.tsx`, `route-globe.tsx`, sus módulos CSS y `route-globe-utils/globe.ts`. Las capturas y comprobaciones funcionales se conservan en `.impeccable/review/dashboard/`. La revisión del refinamiento se registra por separado en `refinement-review.md`; el `ship` anterior de `finish-verdict.md` no aprueba el diseño que el usuario rechazó. El detector de este refinamiento se ejecutó una vez: 82 avisos informativos frente a documentación anterior y cero warnings en `refinement-detector.json`; no constituye por sí solo una aprobación visual.
+La implementación observada está en `src/components/inventory-dashboard.tsx`, `inventory-record-detail.tsx`, `route-globe.tsx`, `analysis-accordion.tsx`, sus módulos CSS y `route-globe-utils/globe.ts`. Las capturas y comprobaciones funcionales se conservan en `.impeccable/review/dashboard/`. La revisión del refinamiento se registra por separado en `refinement-review.md`; el `ship` anterior de `finish-verdict.md` no aprueba el diseño que el usuario rechazó. El detector de este refinamiento se ejecutó una vez: 82 avisos informativos frente a documentación anterior y cero warnings en `refinement-detector.json`; no constituye por sí solo una aprobación visual.
 
 ## Do's and Don'ts
 

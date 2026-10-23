@@ -2,6 +2,16 @@
 
 Fecha local: 22 octubre 2026. Alcance: dashboard local académico con importación XLSX, persistencia, filtros y comparación. No auditoría de infraestructura real ni consulta CVE.
 
+## Acordeones del panorama, cifras animadas y selección regional
+
+Se adaptó el acordeón Radix compartido por el usuario: cinco análisis cerrados inicialmente, uno abierto a la vez, cabecera de 23px, tinte FEMSA y transición de altura. Los indicadores complementarios y calidad del corte ahora ocupan el área bajo las preguntas, que conservan sus accesos a los registros. Los tres análisis amplios mantienen el ancho completo bajo el conjunto. La vista de calidad también explica cuando no hay diferencias detectadas. En la captura final a 1440px, el final de la columna derecha queda a 30px del final del globo, aprovechando el área antes vacía.
+
+Las cuatro cifras principales adaptan TextDecoder con una decodificación numérica finita de 620ms. Cambiar de región, regresar a una región o volver a Panorama repite la animación; al terminar, las cifras permanecen estables. Los separadores y nombres accesibles conservan los valores reales, y movimiento reducido cancela el efecto de inmediato. La selección del globo centra el país de referencia, agrega relleno vino y contorno blanco, aumenta sus puntos y atenúa el resto. Los contornos de EUA, México y Brasil se derivan de la cartografía local ya existente, no del Excel.
+
+Después de la última modificación de implementación, `npm run check` terminó correctamente y `npm run test:dashboard` terminó con exit 0: **16 grupos aprobados y cero errores de consola**. Se verificaron Inicio/Fin, flechas y Enter en los acordeones, apertura exclusiva y distribución bajo las preguntas. La prueba del decoder revisita Norte después de Centro, vuelve desde Servidores a Panorama, espera el valor final, comprueba estabilidad posterior y activa movimiento reducido durante el efecto. Para cada región se midieron más de 500 píxeles del relleno vino real del Canvas y se confirmó el redibujado y nombre accesible de la selección. La proyección de los contornos se comparó numéricamente con la de los puntos en tres coordenadas; diferencias inferiores a 1e-9.
+
+Se inspeccionaron las capturas finales del panorama, acordeón abierto, las tres referencias seleccionadas y la selección móvil. El detector de layout volvió a informar cero hallazgos. La instalación de Radix reportó cero vulnerabilidades conocidas. La documentación de diseño y procedencia se actualizó; Excel, SQLite y capturas de revisión siguen excluidos de Git.
+
 ## Lectura ampliada, navegación y dropdowns
 
 Solicitud posterior del usuario: ampliar especialmente servidores/hallazgos, abrir detalle desde toda la fila, retirar el enlace a propuestas, adaptar sidebar y dropdowns aportados, y suavizar los cambios de pestaña. Implementación: celdas de 20px, datos secundarios de 17px, IDs de 19px, cabeceras de 17px y dropdowns de 18px; las filas de servidor, hallazgo y hallazgos dentro del detalle comparten apertura por celda, con botón nativo accesible y resaltado de foco. Sidebar ajustable de 248–360px, contraíble a 88px y diálogo móvil hasta 960px. Los selectores del dashboard comparten listbox en popover nativo, cierre exterior y teclado. El contenido entra en 240ms, con movimiento reducido respetado.

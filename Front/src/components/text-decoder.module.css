@@ -1,0 +1,3 @@
+.decoder { display:inline-block; white-space:pre; font-variant-numeric:tabular-nums; color:inherit; transition:color .16s ease-out; }
+.decoder[data-settled="false"] { color:#a54567; }
+@media(prefers-reduced-motion:reduce) { .decoder { transition:none; } }

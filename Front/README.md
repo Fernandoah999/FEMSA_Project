@@ -25,6 +25,10 @@ Abrir http://localhost:3040. El servidor se limita a `127.0.0.1`; no hay autenti
 
 La navegación lateral se puede contraer y ajustar de ancho; en móvil se abre con **Menú**. Todas las filas de servidores y hallazgos abren su detalle al pulsar cualquier celda; el botón de detalle permite hacerlo con teclado. Los filtros, cortes y orden usan dropdowns animados con flechas, Inicio/Fin, Enter, Escape y cierre al pulsar fuera. Las pestañas tienen una transición breve, desactivada con movimiento reducido.
 
+Al cambiar de región o volver a Panorama, las cifras principales muestran una breve decodificación y se fijan en el conteo real. La región seleccionada se centra y se resalta con relleno y contorno en el globo. Las animaciones respetan movimiento reducido.
+
+En panorama, los análisis usan acordeones Radix con un panel abierto a la vez. Los indicadores complementarios y calidad del corte se encuentran bajo las preguntas; los análisis amplios conservan el ancho completo debajo del globo.
+
 La identidad combina FEMSA V1 y V3, con tipografía mayor, cuatro indicadores principales y análisis secundarios desplegables. La ficha de servidor usa un espacio amplio en escritorio y pantalla completa móvil. Las 24 propuestas anteriores se conservan en http://localhost:3040/propuestas?style=femsa&v=1 y siguen usando los datos ficticios propios del mockup.
 
 ## Contrato de importación
