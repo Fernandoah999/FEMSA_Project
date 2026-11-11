@@ -48,15 +48,15 @@ export function RouteGlobe({ selected, onSelect, counts }: { selected: string; o
       const r = Math.min(W, H) * .445, cx = W / 2, cy = H / 2;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
       const light = ctx.createRadialGradient(cx - r * .3, cy - r * .4, r * .05, cx, cy, r);
-      light.addColorStop(0, "#432439"); light.addColorStop(1, "#21131e");
+      light.addColorStop(0, "#164367"); light.addColorStop(1, "#0c2038");
       ctx.fillStyle = light; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = "#735367"; ctx.globalAlpha = .22; ctx.lineWidth = .7; ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = "#4685ac"; ctx.globalAlpha = .22; ctx.lineWidth = .7; ctx.stroke(); ctx.globalAlpha = 1;
       drawSelectedRegion(ctx, { cx, cy, r, ...camera.current }, region);
       drawGlobe(ctx, dots, { cx, cy, r, ...camera.current }, time, region, paused, HUBS);
       for (const route of ROUTES) {
         if (region && route.region !== region) continue;
         const points = route.points.map(p => project(p.v, p.lift));
-        ctx.strokeStyle = "#f5d8e7"; ctx.lineWidth = .8;
+        ctx.strokeStyle = "#b3e8ff"; ctx.lineWidth = .8;
         for (let k = 0; k < 32; k++) { const a = points[k], b = points[k + 1]; if (a.z < 0 && b.z < 0) continue; ctx.globalAlpha = .16; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
         const phase = paused ? .62 : (time / 3.9 + route.offset) % 1;
         const head = Math.floor(Math.min(1, phase / .8) * 32);
