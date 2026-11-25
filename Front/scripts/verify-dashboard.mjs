@@ -479,6 +479,43 @@ sys.stdout.buffer.write(mutate(change))
     }
     checks.push("Synthetic XLSX imports through the UI, country selection updates the globe and KPIs, touch rotates the globe, and all five change groups match the reference");
   }
+
+  await navigate(page, /Cargas de datos/);
+  const history = page.getByRole("region", { name: "Historial de cargas" });
+  const activeCut = page.getByRole("combobox", { name: "Corte activo", exact: true });
+  const activeId = await activeCut.getAttribute("data-value");
+  const savedCuts = await (await fetch(base + "/api/snapshots")).json();
+  assert.ok(activeId && savedCuts.length >= 2);
+  const invalidDelete = await fetch(base + "/api/snapshots", {
+    method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [] }),
+  });
+  assert.equal(invalidDelete.status, 400);
+
+  const removeActive = history.getByRole("button", { name: "Eliminar corte activo" });
+  await removeActive.click();
+  const singleConfirmation = page.getByRole("dialog", { name: "¿Eliminar el corte activo?" });
+  await expect(singleConfirmation.getByRole("button", { name: "Cancelar" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(singleConfirmation).toBeHidden();
+  await expect(removeActive).toBeFocused();
+  assert.deepEqual(await (await fetch(base + "/api/snapshots")).json(), savedCuts);
+
+  await removeActive.click();
+  await singleConfirmation.getByRole("button", { name: "Eliminar corte", exact: true }).click();
+  const remainingCuts = savedCuts.filter(cut => cut.id !== activeId);
+  await expect(activeCut).toHaveAttribute("data-value", remainingCuts[0].id);
+  assert.equal((await fetch(base + "/api/snapshots/" + activeId)).status, 404);
+  assert.deepEqual(await (await fetch(base + "/api/snapshots")).json(), remainingCuts);
+
+  await history.getByRole("button", { name: "Vaciar historial" }).click();
+  const bulkConfirmation = page.getByRole("dialog", { name: "¿Vaciar el historial?" });
+  await bulkConfirmation.getByRole("button", { name: "Vaciar historial" }).click();
+  await expect(history.getByRole("heading", { name: "Todavía no hay cortes guardados" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Tu primer corte empieza aquí." })).toBeVisible();
+  assert.deepEqual(await (await fetch(base + "/api/snapshots")).json(), []);
+  checks.push("Snapshot deletion rejects an empty selection, Escape preserves history, single deletion switches the active cut, and clearing history persists after reload");
+
   assert.deepEqual(errors, []);
   await rm(output + "/failure.json", { force: true });
   await writeFile(output + "/verification.json", JSON.stringify({ passed: true, checks, errors }, null, 2));

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
-import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, Search, Server, ShieldAlert, Upload, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode, type Ref } from "react";
+import { Activity, ArrowDownToLine, ArrowRight, ArrowUpRight, ChartNoAxesCombined, Check, ChevronLeft, ChevronRight, CircleHelp, Database, FileSpreadsheet, Filter, Search, Server, ShieldAlert, Trash2, Upload, X } from "lucide-react";
 import { TextDecoder } from "./text-decoder";
 import { AnalysisAccordion, AnalysisSection } from "./analysis-accordion";
 import { AnimatedDropdown } from "./animated-dropdown";
@@ -28,8 +28,8 @@ const criticalityRank = (value: string) => {
   return index < 0 ? -1 : criticalities.length - 1 - index;
 };
 
-function Panel({ title, note, action, children, className = "" }: { title: string; note?: string; action?: ReactNode; children: ReactNode; className?: string }) {
-  return <section aria-label={title} className={`${s.panel} ${className}`}><div className={s.panelHeading}><div><h2>{title}</h2>{note && <p>{note}</p>}</div>{action}</div>{children}</section>;
+function Panel({ title, note, action, children, className = "", headingRef }: { title: string; note?: string; action?: ReactNode; children: ReactNode; className?: string; headingRef?: Ref<HTMLHeadingElement> }) {
+  return <section aria-label={title} className={`${s.panel} ${className}`}><div className={s.panelHeading}><div><h2 ref={headingRef} tabIndex={headingRef ? -1 : undefined}>{title}</h2>{note && <p>{note}</p>}</div>{action}</div>{children}</section>;
 }
 function Select({ name, value, onChange, options, all = "Todos", getLabel = label }: { name: string; value: string; onChange: (value: string) => void; options: string[]; all?: string; getLabel?: (value: string) => string }) {
   return <label className={s.select}><span>{name}</span><AnimatedDropdown label={name} value={value} onValueChange={onChange} options={[{ value: "", label: all }, ...options.map(v => ({ value: v, label: getLabel(v) }))]} /></label>;
@@ -57,6 +57,9 @@ export function InventoryDashboard() {
   const [filters, setFilters] = useState<Filters>({ ...emptyFilters });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [removal, setRemoval] = useState<{ ids: string[]; snapshot?: SnapshotMeta } | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removalError, setRemovalError] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
   const [showMore, setShowMore] = useState(false);
@@ -70,6 +73,8 @@ export function InventoryDashboard() {
   const [detail, setDetail] = useState<{ kind: "server" | "finding"; row: InventoryRow } | null>(null);
   const [compareGroup, setCompareGroup] = useState("resolved");
   const dialog = useRef<HTMLDialogElement>(null);
+  const removalDialog = useRef<HTMLDialogElement>(null);
+  const historyHeading = useRef<HTMLHeadingElement>(null);
   const requestId = useRef(0);
   const comparisonRequest = useRef(0);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -96,6 +101,9 @@ export function InventoryDashboard() {
   useEffect(() => { setOffset(0); }, [filters, snapshot, page, sort]);
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }); }, [page]);
   useEffect(() => { if (detail) { dialog.current?.showModal(); dialog.current?.scrollTo({ top: 0 }); } }, [detail]);
+  useEffect(() => {
+    if (removal && removalDialog.current && !removalDialog.current.open) removalDialog.current.showModal();
+  }, [removal]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(""), 6500); return () => clearTimeout(timer); }, [notice]);
   const filtered = useMemo(() => snapshot ? filterInventory(snapshot, filters) : { servers: [], findings: [] }, [snapshot, filters]);
   const m = useMemo(() => metrics(filtered), [filtered]);
@@ -174,6 +182,41 @@ export function InventoryDashboard() {
     try { const data = await fetchJson<Snapshot>(`/api/snapshots/${id}`); if (ticket === comparisonRequest.current) setComparison(data); }
     catch (error) { if (ticket === comparisonRequest.current) setErrors([(error as Error).message]); }
   }
+  function prepareRemoval(selected?: SnapshotMeta) {
+    setRemovalError("");
+    setRemoval({ ids: selected ? [selected.id] : history.map(cut => cut.id), snapshot: selected });
+  }
+  async function confirmRemoval() {
+    if (!removal || removing) return;
+    setRemoving(true);
+    setRemovalError("");
+    try {
+      const result = await fetchJson<{ deletedCount: number; history: SnapshotMeta[] }>("/api/snapshots", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: removal.ids }),
+      });
+      const remainingIds = new Set(result.history.map(cut => cut.id));
+      setHistory(result.history);
+      comparisonRequest.current++;
+      setComparison(current => current && remainingIds.has(current.id) ? current : null);
+      if (!snapshot || !remainingIds.has(snapshot.id)) {
+        setSnapshot(null);
+        setComparison(null);
+        setFilters({ ...emptyFilters });
+        if (result.history[0]) await selectSnapshot(result.history[0].id);
+      }
+      const count = result.deletedCount;
+      setNotice(count === 0 ? "La selección ya se había eliminado." : count === 1 ? "Se eliminó 1 corte." : `Se eliminaron ${format(count)} cortes.`);
+      removalDialog.current?.close();
+      requestAnimationFrame(() => historyHeading.current?.focus());
+    } catch (error) {
+      const message = error instanceof TypeError ? "No se pudo conectar con la aplicación. Inténtalo de nuevo." : (error as Error).message;
+      setRemovalError(message);
+    } finally {
+      setRemoving(false);
+    }
+  }
   function exportRows(kind: "servers" | "findings") { const rows = kind === "servers" ? ranked : sortedFindings; if (!rows.length || !snapshot) return; download(csv(rows, Object.keys(rows[0])), `femsa-${kind === "servers" ? "servidores" : "hallazgos"}-${snapshot.referenceDate ?? "sin-fecha"}.csv`); }
   function generateReport(kind: "executive" | "technical") {
     if (!snapshot) return;
@@ -248,7 +291,21 @@ export function InventoryDashboard() {
           </div>
         </AnalysisAccordion>}
         {snapshot && (page === "servers" || page === "findings") && <Panel title={page === "servers" ? "Inventario del alcance" : "Hallazgos del alcance"} note={`${format(page === "servers" ? ranked.length : sortedFindings.length)} registros coincidentes · Selecciona una fila para abrir su detalle`} action={<div className={s.actions}><label className={s.sort}>Orden<AnimatedDropdown label="Orden de registros" value={sort} onValueChange={setSort} options={[{ value: "priority", label: "Prioridad" }, { value: "name", label: "Identificador" }, ...(page === "findings" ? [{ value: "age", label: "Mayor antigüedad" }] : [])]} /></label><button className={s.secondary} disabled={!(page === "servers" ? ranked.length : sortedFindings.length)} onClick={() => exportRows(page)}><ArrowDownToLine size={15} />Exportar CSV</button></div>}>{page === "servers" ? serverTable(ranked) : findingTable(sortedFindings)}<Pagination offset={offset} total={page === "servers" ? ranked.length : sortedFindings.length} onChange={setOffset} /></Panel>}
-        {page === "imports" && <><div className={s.importGrid}><Panel title="Importar un nuevo corte" note="Excel .xlsx · hasta 20 MB"><form onSubmit={importFile}><label className={`${s.dropzone} ${dragging ? s.dragging : ""}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); chooseFile(e.dataTransfer.files[0]); }}><Upload size={28} strokeWidth={1.4} /><strong>{file ? file.name : "Selecciona o arrastra tu Excel"}</strong><span>{file ? `${(file.size / 1024).toFixed(0)} KB · listo para validar` : "Conserva los encabezados y las dos hojas del formato académico."}</span><input ref={fileInput} aria-label="Archivo Excel" type="file" accept=".xlsx" disabled={busy} onChange={e => chooseFile(e.target.files?.[0])} /></label><div className={s.importFields}><label>Nombre del corte<input required maxLength={100} placeholder="Ej. Revisión de octubre" value={importName} onChange={e => setImportName(e.target.value)} disabled={busy} /></label><label>Fecha de referencia<input aria-label="Fecha de referencia" type="date" required value={referenceDate} onChange={e => setReferenceDate(e.target.value)} disabled={busy} /><small>Fecha que representan los datos, no la fecha de carga.</small></label></div><button className={s.primary} type="submit" disabled={!file || busy}><Upload size={16} />{busy ? "Validando y guardando…" : "Validar y guardar corte"}</button></form></Panel><section className={s.importGuide}><FileSpreadsheet size={31} strokeWidth={1.3} /><h2>Un formato conocido.<br />Un historial que crece.</h2><p>Cada carga conserva sus servidores, hallazgos y observaciones de calidad. Los indicadores siempre se calculan con el detalle del archivo.</p><ul><li>Se comprueban las columnas y categorías.</li><li>Se rechazan IDs duplicados y referencias inexistentes.</li><li>La columna opcional País de la hoja Servidores activa el mapa por país.</li></ul></section></div><Panel title="Historial de cargas" note="Los cortes se conservan de forma independiente en este equipo">{!history.length ? <Empty title="Todavía no hay cortes guardados" text="Importa tu primer Excel para explorar el dashboard." /> : <div className={s.tableWrap}><table><thead><tr><th>Corte</th><th>Fecha de referencia</th><th>Cargado</th><th>Servidores</th><th>Hallazgos</th><th /></tr></thead><tbody>{history.map(h => <tr key={h.id}><td><strong>{h.name}</strong><small>{h.filename}</small></td><td>{date(h.referenceDate)}</td><td>{uploaded(h.uploadedAt)}</td><td>{format(h.serverCount)}</td><td>{format(h.findingCount)}</td><td><button className={s.textButton} disabled={loading || busy} onClick={async () => { await selectSnapshot(h.id); navigate("overview"); }}>{h.id === snapshot?.id ? "Abrir corte activo" : "Abrir corte"}<ArrowUpRight size={14} /></button></td></tr>)}</tbody></table></div>}</Panel>{snapshot && <Panel title="Observaciones del corte activo" note={snapshot.name}>{snapshot.warnings.length ? <ul className={s.warningList}>{snapshot.warnings.map(w => <li key={w.code}><CircleHelp size={17} /><span>{w.message}</span></li>)}</ul> : <p className={s.panelPadding}>No se detectaron diferencias en los controles de consistencia aplicados.</p>}</Panel>}</>}
+        {page === "imports" && <><div className={s.importGrid}><Panel title="Importar un nuevo corte" note="Excel .xlsx · hasta 20 MB"><form onSubmit={importFile}><label className={`${s.dropzone} ${dragging ? s.dragging : ""}`} onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); chooseFile(e.dataTransfer.files[0]); }}><Upload size={28} strokeWidth={1.4} /><strong>{file ? file.name : "Selecciona o arrastra tu Excel"}</strong><span>{file ? `${(file.size / 1024).toFixed(0)} KB · listo para validar` : "Conserva los encabezados y las dos hojas del formato académico."}</span><input ref={fileInput} aria-label="Archivo Excel" type="file" accept=".xlsx" disabled={busy} onChange={e => chooseFile(e.target.files?.[0])} /></label><div className={s.importFields}><label>Nombre del corte<input required maxLength={100} placeholder="Ej. Revisión de octubre" value={importName} onChange={e => setImportName(e.target.value)} disabled={busy} /></label><label>Fecha de referencia<input aria-label="Fecha de referencia" type="date" required value={referenceDate} onChange={e => setReferenceDate(e.target.value)} disabled={busy} /><small>Fecha que representan los datos, no la fecha de carga.</small></label></div><button className={s.primary} type="submit" disabled={!file || busy}><Upload size={16} />{busy ? "Validando y guardando…" : "Validar y guardar corte"}</button></form></Panel><section className={s.importGuide}><FileSpreadsheet size={31} strokeWidth={1.3} /><h2>Un formato conocido.<br />Un historial que crece.</h2><p>Cada carga conserva sus servidores, hallazgos y observaciones de calidad. Los indicadores siempre se calculan con el detalle del archivo.</p><ul><li>Se comprueban las columnas y categorías.</li><li>Se rechazan IDs duplicados y referencias inexistentes.</li><li>La columna opcional País de la hoja Servidores activa el mapa por país.</li></ul></section></div>
+          <Panel
+            title="Historial de cargas"
+            note="Los cortes se conservan de forma independiente en este equipo"
+            headingRef={historyHeading}
+            action={history.length > 0 && <div className={s.historyActions}>
+              <button type="button" className={s.secondary} disabled={!snapshot || loading || busy || removing} onClick={() => { if (snapshot) prepareRemoval(snapshot); }}>
+                Eliminar corte activo
+              </button>
+              <button type="button" className={`${s.secondary} ${s.deleteAction}`} disabled={loading || busy || removing} onClick={() => prepareRemoval()}>
+                <Trash2 size={16} aria-hidden="true" />Vaciar historial
+              </button>
+            </div>}
+          >
+            {!history.length ? <Empty title="Todavía no hay cortes guardados" text="Importa tu primer Excel para explorar el dashboard." /> : <div className={s.tableWrap}><table><thead><tr><th>Corte</th><th>Fecha de referencia</th><th>Cargado</th><th>Servidores</th><th>Hallazgos</th><th /></tr></thead><tbody>{history.map(h => <tr key={h.id}><td><strong>{h.name}</strong><small>{h.filename}</small></td><td>{date(h.referenceDate)}</td><td>{uploaded(h.uploadedAt)}</td><td>{format(h.serverCount)}</td><td>{format(h.findingCount)}</td><td><button className={s.textButton} disabled={loading || busy} onClick={async () => { await selectSnapshot(h.id); navigate("overview"); }}>{h.id === snapshot?.id ? "Abrir corte activo" : "Abrir corte"}<ArrowUpRight size={14} /></button></td></tr>)}</tbody></table></div>}</Panel>{snapshot && <Panel title="Observaciones del corte activo" note={snapshot.name}>{snapshot.warnings.length ? <ul className={s.warningList}>{snapshot.warnings.map(w => <li key={w.code}><CircleHelp size={17} /><span>{w.message}</span></li>)}</ul> : <p className={s.panelPadding}>No se detectaron diferencias en los controles de consistencia aplicados.</p>}</Panel>}</>}
         {snapshot && page === "compare" && <><Panel title="Selecciona el corte de referencia" note="El corte activo es el resultado que compararás contra esta referencia"><div className={s.compareSelect}><label>Comparar desde<AnimatedDropdown label="Corte de referencia" value={comparison?.id ?? ""} onValueChange={selectComparison} options={[{ value: "", label: "Seleccionar otro corte" }, ...history.filter(h => h.id !== snapshot.id).map(h => ({ value: h.id, label: `${h.name} · ${date(h.referenceDate)}` }))]} /></label><ArrowRight size={20} /><div><span>Hasta el corte activo</span><strong>{snapshot.name}</strong><small>{date(snapshot.referenceDate)}</small></div></div>{history.length < 2 && <p className={s.panelPadding}>Necesitas dos cargas para comparar. <button className={s.textButton} onClick={() => navigate("imports")}>Importar otro corte<ArrowRight size={14} /></button></p>}</Panel>{differences && comparison && <><p className={s.compareNotice}>{!comparison.referenceDate || !snapshot.referenceDate ? "Uno de los cortes no tiene fecha. La comparación muestra diferencias entre archivos, sin afirmar una evolución cronológica." : comparison.referenceDate >= snapshot.referenceDate ? "La referencia tiene una fecha igual o posterior al corte activo. Lee los cambios en la dirección seleccionada." : `Cambios del ${date(comparison.referenceDate)} al ${date(snapshot.referenceDate)}.`} Los filtros se aplican a ambos cortes.{filters.country && !comparison.servers.some(server => countryCode(server.Country)) && " El corte de referencia no tiene países identificados. Restablece el filtro de país para comparar por región."}</p><Panel title="Variación de indicadores"><div className={s.tableWrap}><table><thead><tr><th>Indicador</th><th>Referencia</th><th>Activo</th><th>Cambio absoluto</th></tr></thead><tbody>{([ ["servers", "Servidores"], ["open", "Pendientes"], ["high", "Pendientes de nivel 4–5"], ["overdue", "Pendientes fuera de SLA"], ["remediated", "Remediados"], ["obsolete", "Activos con fin de vida o soporte"] ] as const).map(([key, name]) => { const delta = differences.after[key] - differences.before[key]; return <tr key={key}><td>{name}</td><td>{format(differences.before[key])}</td><td>{format(differences.after[key])}</td><td><strong>{delta > 0 ? "+" : ""}{format(delta)}</strong></td></tr>; })}</tbody></table></div></Panel><Panel title="Cambios en los hallazgos" note="La ausencia de un ID no se interpreta como remediación"><div className={s.diffTabs}>{([ ["resolved", "Pasaron a remediados"], ["reopened", "Volvieron a pendientes"], ["added", "IDs nuevos"], ["absent", "IDs ausentes"], ["reassigned", "Cambio de servidor"] ] as const).map(([key, name]) => <button key={key} aria-pressed={compareGroup === key} onClick={() => { setCompareGroup(key); setOffset(0); }}>{name}<strong>{format(differences[key].length)}</strong></button>)}</div>{findingTable(differences[compareGroup as "resolved" | "reopened" | "added" | "absent" | "reassigned"])}<Pagination offset={offset} total={differences[compareGroup as "resolved" | "reopened" | "added" | "absent" | "reassigned"].length} onChange={setOffset} /></Panel></>}</>}
         {page === "method" && <div className={s.method}><Panel title="Qué cuenta cada indicador"><dl><dt>Hallazgos pendientes</dt><dd>Registros en estado NEW, ACTIVE o REOPENED. REMEDIATED se excluye de todos los indicadores de pendientes.</dd><dt>Mayor severidad</dt><dd>Niveles 4 y 5. Conservamos los números originales porque no hay un diccionario que confirme sus etiquetas. No se convierten a CVSS.</dd><dt>SLA incumplido pendiente</dt><dd>Cada pendiente se evalúa con el plazo en días enteros asignado a la criticidad de su servidor. Se usa la hoja Servidores y el rango de antigüedad. Si el rango cruza el plazo, el SLA queda indeterminado. Los remediados quedan fuera de este cálculo. El estado original del Excel se conserva en la ficha técnica.</dd><dt>Conteos de vulnerabilidades</dt><dd>Se calculan desde la hoja Vulnerabilidades. VulnerabilityVolumeBand se conserva como rango declarado y se compara con ese detalle.</dd><dt>Alcance y filtros</dt><dd>Los filtros operativos seleccionan servidores. Los filtros de hallazgo seleccionan sus registros y los servidores asociados. Un servidor sin hallazgos se conserva cuando no hay filtros de hallazgo. Los CSV incluyen todos los registros filtrados, no solo la página visible.</dd><dt>Comparación de cortes</dt><dd>Se relacionan FindingID entre archivos. Un ID ausente se muestra separado de los remediados. La continuidad requiere identificadores estables. Los valores de cada corte usan el mismo filtro; cambiar atributos puede mover registros fuera del alcance.</dd></dl></Panel><Panel title="Interpretaciones y límites"><dl><dt>Mapa regional</dt><dd>La columna opcional País de la hoja Servidores admite nombres en español o inglés y códigos ISO. Cuando falta la columna, se usan referencias visuales en EUA, México y Brasil para Norte, Centro y Sur. Los destellos en ese modo son ilustrativos.</dd><dt>Cumplimiento y cifrado</dt><dd>ComplianceFlag y EncryptionContext se interpretan provisionalmente como relación temática. YES no demuestra incumplimiento y NO no demuestra ausencia de cifrado.</dd><dt>Fin de vida y soporte</dt><dd>EOL se interpreta como fin de vida y EOL_EOS como fin de vida y soporte. Se conservan ambos valores sin consultar ciclos de soporte externos.</dd><dt>Capacidades y tiempos</dt><dd>CPU y memoria son bandas sin unidad confirmada. Las edades son intervalos reportados; no calculamos días exactos ni tiempos medios de remediación. BootAgeBand se interpreta como tiempo desde el arranque.</dd><dt>Riesgo y explotación</dt><dd>RiskBand y FindingRiskBand son valores reportados, sin fórmula conocida. Explotación disponible no equivale a ataque confirmado; asociación con malware no demuestra infección.</dd><dt>Origen y almacenamiento</dt><dd>El Excel compartido contiene datos ficticios para uso académico. No incluye CVE ni versiones técnicas. Cada carga se guarda localmente con su fecha de referencia, fecha de importación y observaciones; no se consulta ningún servicio externo.</dd></dl></Panel></div>}
         </>}
@@ -256,6 +313,30 @@ export function InventoryDashboard() {
       </main>
     </div>
     {notice && <div className={s.toast} role="status"><Check size={18} />{notice}<button aria-label="Cerrar notificación" onClick={() => setNotice("")}><X size={15} /></button></div>}
+    <dialog
+      ref={removalDialog}
+      className={s.confirmDialog}
+      aria-labelledby="remove-snapshot-title"
+      aria-describedby="remove-snapshot-description"
+      onClose={() => setRemoval(null)}
+      onCancel={event => { if (removing) event.preventDefault(); }}
+    >
+      {removal && <>
+        <h2 id="remove-snapshot-title">{removal.snapshot ? "¿Eliminar el corte activo?" : "¿Vaciar el historial?"}</h2>
+        <div id="remove-snapshot-description">
+          {removal.snapshot ? <p>Se eliminará <strong>{removal.snapshot.name}</strong> ({date(removal.snapshot.referenceDate)}) con sus servidores y hallazgos.</p>
+            : <p>El borrado incluye <strong>{format(removal.ids.length)} {removal.ids.length === 1 ? "corte" : "cortes"}</strong> del historial y sus servidores y hallazgos.</p>}
+          <p>Esta acción es permanente. Puedes volver a importar los Excel originales.</p>
+        </div>
+        {removalError && <p className={s.confirmError} role="alert">{removalError}</p>}
+        <div className={s.confirmActions}>
+          <button type="button" className={s.secondary} autoFocus disabled={removing} onClick={() => removalDialog.current?.close()}>Cancelar</button>
+          <button type="button" className={`${s.primary} ${s.confirmDelete}`} disabled={removing} onClick={confirmRemoval}>
+            {removing ? "Eliminando…" : removal.snapshot ? "Eliminar corte" : "Vaciar historial"}
+          </button>
+        </div>
+      </>}
+    </dialog>
     <dialog ref={dialog} className={s.dialog} aria-label="Detalle del registro" onClose={() => setDetail(null)} onClick={e => { if (e.target === dialog.current) dialog.current.close(); }}>
       {detail && <InventoryRecordDetail key={`${detail.kind}-${detail.row.FindingID ?? detail.row.ServerID}`} kind={detail.kind} row={detail.row} findings={filtered.findings} names={fieldNames} onClose={() => dialog.current?.close()} onFinding={showFinding} onServer={id => { const server = snapshot?.servers.find(r => r.ServerID === id); if (server) setDetail({ kind: "server", row: server }); }} />}
     </dialog>

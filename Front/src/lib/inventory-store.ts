@@ -15,10 +15,25 @@ function database() {
   db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; CREATE TABLE IF NOT EXISTS snapshots (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, payload TEXT NOT NULL, hash TEXT NOT NULL, reference_date TEXT NOT NULL, UNIQUE(hash, reference_date));");
   return db;
 }
+function readSnapshotList(db: DatabaseSync): SnapshotMeta[] {
+  return db.prepare("SELECT metadata FROM snapshots ORDER BY rowid DESC").all().map(row => JSON.parse(row.metadata as string));
+}
 export function listSnapshots(): SnapshotMeta[] {
   const db = database();
-  try { return db.prepare("SELECT metadata FROM snapshots ORDER BY rowid DESC").all().map(row => JSON.parse(row.metadata as string)); }
+  try { return readSnapshotList(db); }
   finally { db.close(); }
+}
+export function deleteSnapshots(ids: string[]): { deletedCount: number; history: SnapshotMeta[] } {
+  const db = database();
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    const { changes } = db.prepare("DELETE FROM snapshots WHERE id IN (SELECT value FROM json_each(?))").run(JSON.stringify(ids));
+    const history = readSnapshotList(db);
+    db.exec("COMMIT");
+    return { deletedCount: Number(changes), history };
+  } finally {
+    db.close();
+  }
 }
 export function getSnapshot(id: string): Snapshot | null {
   const db = database();
