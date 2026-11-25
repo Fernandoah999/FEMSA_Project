@@ -14,13 +14,13 @@ spec.loader.exec_module(reader)
 NS = reader.NS
 
 
-def mutate(change):
+def mutate(change, sheet="sheet2.xml"):
     source = SOURCE.read_bytes()
     output = io.BytesIO()
     with zipfile.ZipFile(io.BytesIO(source)) as original, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
         for name in original.namelist():
             data = original.read(name)
-            if name == "xl/worksheets/sheet2.xml":
+            if name == f"xl/worksheets/{sheet}":
                 root = ET.fromstring(data)
                 change(root)
                 data = ET.tostring(root)
@@ -37,6 +37,26 @@ def set_cell(root, address, text):
 
 
 class InventoryReaderTests(unittest.TestCase):
+    def test_optional_country_column(self):
+        def change(root):
+            for number, text in [(4, "País"), (5, "México")]:
+                row = root.find(f".//s:row[@r='{number}']", NS)
+                cell = ET.SubElement(row, "{" + NS["s"] + "}c", {"r": f"R{number}"})
+                set_cell(root, cell.attrib["r"], text)
+        result = reader.read_inventory(mutate(change, "sheet1.xml"))
+        self.assertNotIn("errors", result)
+        self.assertEqual(result["servers"][0]["Country"], "México")
+        self.assertEqual(result["servers"][1]["Country"], "")
+
+    def test_duplicate_country_headers_rejected(self):
+        def change(root):
+            row = root.find(".//s:row[@r='4']", NS)
+            for address, name in [("R4", "Country"), ("S4", "País")]:
+                ET.SubElement(row, "{" + NS["s"] + "}c", {"r": address})
+                set_cell(root, address, name)
+        result = reader.read_inventory(mutate(change, "sheet1.xml"))
+        self.assertTrue(any("encabezados duplicados" in error for error in result.get("errors", [])))
+
     def test_source_counts_and_observations(self):
         result = reader.read_inventory(SOURCE.read_bytes())
         self.assertNotIn("errors", result)

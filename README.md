@@ -10,10 +10,12 @@ Es un proyecto académico. El repositorio distribuye el frontend, el backend y s
 - Consultar indicadores de hallazgos pendientes, severidad y plazos de atención.
 - Filtrar por región, ambiente, sistema operativo, estado, severidad y otros atributos.
 - Explorar tablas, mapa de calor y fichas amplias de servidores y hallazgos.
-- Conservar las cargas y comparar cortes, distinguiendo registros nuevos, ausentes, remediados y reabiertos.
-- Exportar todos los registros filtrados a CSV.
+- Conservar las cargas y comparar cortes, distinguiendo registros nuevos, ausentes, remediados, reabiertos y reasignados.
+- Exportar todos los registros filtrados a CSV y descargar reportes ejecutivo y técnico en PDF.
 
-El globo 3D usa referencias visuales definidas para el simulador: **Norte en EUA, Centro en México y Sur en Brasil**. El Excel no contiene esas ubicaciones. Las líneas y destellos son ilustrativos y no representan tráfico ni ataques detectados.
+El globo 3D marca los países reportados en el Excel y filtra el alcance al seleccionarlos. Los cortes con agrupación exclusivamente regional usan referencias ilustrativas en EUA, México y Brasil para Norte, Centro y Sur.
+
+El [guion de la demo](docs/Guion-demo-FEMSA.docx) distribuye la presentación entre cinco personas e incluye el contrato del Excel y un banco de preguntas técnicas.
 
 ## Arquitectura
 
@@ -26,7 +28,50 @@ El globo 3D usa referencias visuales definidas para el simulador: **Norte en EUA
 
 **Frontend y backend están dentro de `Front/`.** El nombre de la carpeta se conserva desde el prototipo inicial; contiene la aplicación completa. No hace falta iniciar un backend por separado, instalar un servidor de base de datos ni crear cuentas.
 
-## Requisitos
+## Ejecutar con Docker
+
+Requiere un equipo con Docker Engine y Docker Compose, o Docker Desktop configurado para contenedores Linux. Desde la raíz del repositorio:
+
+```bash
+git clone https://github.com/Fernandoah999/FEMSA_Project.git
+cd FEMSA_Project
+docker compose up -d --build --wait
+```
+
+Abre [http://127.0.0.1:3040](http://127.0.0.1:3040). Compose publica el puerto en la interfaz local del equipo. La imagen `femsa-atlas:0.1.0` incluye Node.js, Python y una compilación de producción de Next.js. El contenedor corre con el usuario `node`.
+
+SQLite queda en el volumen `inventory-data`, montado en `/app/data`. El volumen conserva los cortes al detener o recrear el contenedor. La primera instalación empieza vacía.
+
+```bash
+docker compose ps
+docker compose logs -f atlas
+docker compose down
+```
+
+Si el puerto **3040** está ocupado, define `FEMSA_HOST_PORT` antes de iniciar Compose. Por ejemplo, `FEMSA_HOST_PORT=3042 docker compose up -d --wait` en Linux/macOS o `$env:FEMSA_HOST_PORT = "3042"` en PowerShell antes de ejecutar Compose.
+
+### Transferir la imagen a otro equipo
+
+Descarga de [Releases](https://github.com/Fernandoah999/FEMSA_Project/releases) el archivo de imagen para la arquitectura del equipo. Copia el archivo al destino y ejecuta desde la carpeta que contiene `compose.yaml`:
+
+```bash
+docker image load --input femsa-atlas-0.1.0-linux-amd64.tar.gz
+docker compose up -d --no-build --pull never --wait
+```
+
+La carga de la imagen funciona sin Internet. Para reconstruirla desde el código se necesita acceso a Docker Hub, Debian y npm. En el equipo de FEMSA, TI debe validar el runtime de contenedores, la arquitectura y el almacenamiento. La configuración de uso local confía en el acceso al equipo. Un servicio compartido requiere definir autenticación, autorización, TLS y respaldos antes de publicarlo en la red.
+
+### Respaldar los cortes Docker
+
+Detén el servicio para copiar la carpeta SQLite completa y vuelve a iniciarlo:
+
+```bash
+docker compose stop atlas
+docker compose cp atlas:/app/data ./respaldo-femsa
+docker compose start atlas
+```
+
+## Requisitos sin Docker
 
 - **Node.js 22.18 o posterior**, con npm. Puedes comprobarlo con `node --version` y `npm --version`.
 - **Python 3.10 o posterior**. Por defecto la app ejecuta `python3`; comprueba `python3 --version`.
@@ -34,7 +79,7 @@ El globo 3D usa referencias visuales definidas para el simulador: **Norte en EUA
 
 No se requieren claves API, variables de entorno ni dependencias Python para la configuración habitual. Todo el procesamiento y almacenamiento ocurre en el equipo; la instalación inicial de npm necesita acceso a Internet.
 
-## Ejecutar en local
+## Ejecutar en local sin Docker
 
 Desde una terminal:
 
@@ -78,13 +123,17 @@ La misma variable se puede usar con `npm start`. Puedes asignarle la ruta comple
 
 Cada Excel debe conservar las dos hojas y sus **17 columnas de servidores y 20 de vulnerabilidades**. Los encabezados pueden estar dentro de las primeras 25 filas. Se rechazan campos requeridos vacíos, categorías no admitidas, IDs duplicados, servidores inexistentes y fórmulas en las columnas del contrato.
 
+En la hoja Servidores puedes agregar la columna opcional `País` (`Country` o `CountryCode`). El globo reconoce nombres en español o inglés y códigos ISO 3166-1. Seleccionar un país actualiza los indicadores y las tablas.
+
+En **Cumplimiento del SLA** puedes configurar 7, 30, 90 o 180 días por criticidad del servidor. La política se guarda en el navegador y se aplica al panorama, los filtros, los reportes y la comparación.
+
 La comparación necesita identificadores `ServerID` y `FindingID` estables entre archivos. Un hallazgo que deja de aparecer se presenta como **ausente**, no se da por remediado. El mismo archivo para la misma fecha no se guarda dos veces.
 
 Consulta el [contrato y documentación técnica](Front/README.md) o el [lector y sus columnas admitidas](Front/scripts/read-inventory.py) para preparar otros archivos.
 
 ## Dónde se guardan los datos
 
-Las cargas se conservan en:
+Con Docker, los cortes se guardan en el volumen de Compose. Con Node.js local, las cargas se conservan en:
 
 ```text
 Front/data/inventory.sqlite
@@ -132,6 +181,9 @@ Este comando requiere una compilación previa (`npm run check`), inicia un servi
 
 ```text
 FEMSA_Project/
+├── Dockerfile                   # Imagen de producción
+├── compose.yaml                 # Contenedor y volumen persistente
+├── docs/                        # Guion y banco de preguntas técnicas
 ├── README.md
 └── Front/
     ├── src/app/                  # Páginas y API local

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { format, isOpen, label, type InventoryRow } from "@/lib/inventory";
+import { countryCode, countryLabel, format, isOpen, label, type InventoryRow } from "@/lib/inventory";
 import { InventoryTableRow } from "./inventory-table-row";
 import s from "./inventory-dashboard.module.css";
 
@@ -16,8 +16,16 @@ export function InventoryRecordDetail({ kind, row, findings, names, onClose, onF
   const all = findings.filter(f => f.ServerID === row.ServerID);
   const pending = all.filter(isOpen);
   const rows = all.filter(f => view === "ALL" || (view === "OPEN" ? isOpen(f) : !isOpen(f))).sort((a, b) => +b.Severity - +a.Severity || a.FindingID.localeCompare(b.FindingID));
-  const context = ["FunctionalRole", "OSFamily", "Environment", "RegionGroup", "InfrastructureType", "ExposureCategory", "AssetCriticality", "OSLifecycle"];
-  const fields = (keys: string[]) => <dl className={s.detailFields}>{keys.map(key => <div key={key}><dt>{names[key] ?? key}</dt><dd>{key === "Severity" ? `Nivel ${row[key]}` : label(row[key] ?? "")}</dd></div>)}</dl>;
+  const context = ["FunctionalRole", "OSFamily", "Environment", "RegionGroup", ...(row.Country ? ["Country"] : []), "InfrastructureType", "ExposureCategory", "AssetCriticality", "OSLifecycle"];
+  function fieldValue(key: string, value: string) {
+    if (key === "Severity") return `Nivel ${value}`;
+    if (key === "Country") {
+      const code = countryCode(value);
+      return code ? countryLabel(code) : value;
+    }
+    return label(value);
+  }
+  const fields = (keys: string[]) => <dl className={s.detailFields}>{keys.map(key => <div key={key}><dt>{names[key] ?? key}</dt><dd>{fieldValue(key, row[key] ?? "")}</dd></div>)}</dl>;
   return <div className={s.detailContent}>
     <header className={s.detailHeading}><div><h2>{kind === "server" ? "Servidor" : "Hallazgo"} {row.FindingID ?? row.ServerID}</h2><p>{kind === "server" ? `${label(row.FunctionalRole)} · ${label(row.Environment)} · Región ${label(row.RegionGroup)}` : `${label(row.FunctionalCategory)} · En el servidor ${row.ServerID}`}</p></div><button className={s.secondary} onClick={onClose} aria-label="Cerrar detalle"><X size={20} />Cerrar</button></header>
     {kind === "server" ? <>
@@ -30,8 +38,11 @@ export function InventoryRecordDetail({ kind, row, findings, names, onClose, onF
     </> : <>
       <button className={s.textButton} onClick={() => onServer(row.ServerID)}><ArrowLeft size={17} />Volver al servidor {row.ServerID}</button>
       <section className={s.findingSummary}><div><h3>¿Qué tan prioritario es?</h3><strong>Nivel {row.Severity}</strong><p>{label(row.FindingStatus)} · Riesgo reportado: {label(row.FindingRiskBand)}</p></div><div><h3>¿Cuánto tiempo lleva registrado?</h3><strong>{label(row.AgeBand)}</strong><p>Última observación: {label(row.LastSeenBand)}</p></div></section>
-      <section className={s.detailSection}><h3>¿Qué acción requiere?</h3><p className={s.remediationAction}>{label(row.RemediationCategory)}</p><p>{row.SLAStatus === "BREACHED" ? "El plazo de atención figura como incumplido en el archivo." : "El archivo agrupa este hallazgo dentro del plazo o como no aplicable."}</p>{fields(["FunctionalCategory", "ExploitabilityCategory", "MalwareAssociation", "AssetCriticality"])}</section>
+      <section className={s.detailSection}><h3>¿Qué acción requiere?</h3><p className={s.remediationAction}>{label(row.RemediationCategory)}</p><p>{label(row.SLAStatus)}{row.SLATargetDays && ` · Plazo aplicable: ${row.SLATargetDays} días`}</p>{fields(["FunctionalCategory", "ExploitabilityCategory", "MalwareAssociation", "AssetCriticality"])}</section>
     </>}
-    <details className={s.technical}><summary>Ver ficha técnica completa · {Object.keys(row).length} campos</summary><p>Valores del Excel. Los códigos originales se conservan para consulta.</p><dl className={s.detailFields}>{Object.entries(row).map(([key, value]) => <div key={key}><dt>{names[key] ?? key}<small>{key}</small></dt><dd>{key === "Severity" ? `Nivel ${value}` : label(value)}{label(value) !== value && <small>{value}</small>}</dd></div>)}</dl></details>
+    <details className={s.technical}><summary>Ver ficha técnica completa · {Object.keys(row).length} campos</summary><p>Valores del Excel y resultados de la política de SLA.</p><dl className={s.detailFields}>{Object.entries(row).map(([key, value]) => {
+      const formatted = fieldValue(key, value);
+      return <div key={key}><dt>{names[key] ?? key}<small>{key}</small></dt><dd>{formatted}{formatted !== value && <small>{value}</small>}</dd></div>;
+    })}</dl></details>
   </div>;
 }

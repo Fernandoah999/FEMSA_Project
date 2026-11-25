@@ -6,8 +6,8 @@ export type SnapshotMeta = {
   warnings: ImportWarning[]; hash: string;
 };
 export type Snapshot = SnapshotMeta & { servers: InventoryRow[]; findings: InventoryRow[] };
-export type Filters = { region: string; environment: string; os: string; exposure: string; criticality: string; severity: string; status: string; category: string; age: string; sla: string; search: string };
-export const emptyFilters: Filters = { region: "", environment: "", os: "", exposure: "", criticality: "", severity: "", status: "", category: "", age: "", sla: "", search: "" };
+export type Filters = { region: string; country: string; environment: string; os: string; exposure: string; criticality: string; severity: string; status: string; category: string; age: string; sla: string; search: string };
+export const emptyFilters: Filters = { region: "", country: "", environment: "", os: "", exposure: "", criticality: "", severity: "", status: "", category: "", age: "", sla: "", search: "" };
 export const regions = ["REGION_NORTH", "REGION_CENTRAL", "REGION_SOUTH"];
 export const labels: Record<string, string> = {
   REGION_NORTH: "Norte", REGION_CENTRAL: "Centro", REGION_SOUTH: "Sur",
@@ -20,15 +20,34 @@ export const labels: Record<string, string> = {
   GENERAL_INFRASTRUCTURE: "Infraestructura general", ERP_ANALYTICS: "Analítica ERP", DATABASE: "Base de datos", ERP_GOVERNANCE: "Gobierno ERP", WEB_APPLICATION: "Aplicación web", SECURITY: "Seguridad", DIRECTORY: "Directorio", FILE_TRANSFER: "Transferencia de archivos", ERP_PRODUCTION: "Producción ERP", ERP: "ERP", OPERATING_SYSTEM: "Sistema operativo", SECURE_CONFIGURATION: "Configuración segura", MIDDLEWARE: "Middleware",
   AGE_0_7D: "0–7 días", AGE_8_30D: "8–30 días", AGE_31_90D: "31–90 días", AGE_91_180D: "91–180 días", AGE_GT180D: "Más de 180 días",
   PATCH_OR_UPDATE: "Parche o actualización", VERSION_UPGRADE: "Cambio de versión", CONFIGURATION_CHANGE: "Cambio de configuración", GENERAL_REMEDIATION: "Corrección general",
+  WITHIN: "Dentro del plazo", NOT_APPLICABLE: "No aplica (remediado)", UNKNOWN: "Sin datos para evaluar el SLA",
   BREACHED: "Incumplido", WITHIN_OR_NOT_APPLICABLE: "Dentro de plazo o no aplicable", YES: "Sí", NO: "No", KNOWN_OR_AVAILABLE: "Conocida o disponible", NOT_IDENTIFIED: "No identificada", ASSOCIATED: "Asociado",
 };
-export const label = (value: string) => labels[value] ?? value;
+export const label = (value: string) => Object.hasOwn(labels, value) ? labels[value] : value;
 export const format = (n: number) => n.toLocaleString("es-MX");
 export const isOpen = (r: InventoryRow) => r.FindingStatus !== "REMEDIATED";
 export const severityLabel = (value: string) => `Nivel ${value}`;
+
+export const countryCatalog: Record<string, { alpha3: string; numeric: string; point?: number[] }> = countryCodes;
+const countryNames = new Intl.DisplayNames(["es-MX"], { type: "region" });
+const englishCountryNames = new Intl.DisplayNames(["en"], { type: "region" });
+const normalizeCountry = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+export const countryLabel = (code: string) => countryNames.of(code) ?? code;
+const countryAliases = new Map<string, string>();
+for (const [code, { alpha3, numeric }] of Object.entries(countryCatalog)) {
+  for (const alias of [code, alpha3, numeric, String(Number(numeric)), countryLabel(code), englishCountryNames.of(code) ?? code]) {
+    countryAliases.set(normalizeCountry(alias), code);
+  }
+}
+for (const alias of ["EUA", "EE. UU.", "Estados Unidos de América", "United States of America"]) {
+  countryAliases.set(normalizeCountry(alias), "US");
+}
+export const countryCode = (value?: string) => value ? countryAliases.get(normalizeCountry(value)) : undefined;
+
 export function filterInventory(snapshot: Snapshot, filters: Filters) {
   const serverFields = { region: "RegionGroup", environment: "Environment", os: "OSFamily", exposure: "ExposureCategory", criticality: "AssetCriticality" };
-  const base = snapshot.servers.filter(s => Object.entries(serverFields).every(([key, col]) => !filters[key as keyof Filters] || filters[key as keyof Filters] === s[col]));
+  const base = snapshot.servers.filter(s => (!filters.country || countryCode(s.Country) === filters.country)
+    && Object.entries(serverFields).every(([key, col]) => !filters[key as keyof Filters] || filters[key as keyof Filters] === s[col]));
   const ids = new Set(base.map(s => s.ServerID));
   const search = filters.search.trim().toLowerCase();
   const matchingServers = new Set(base.filter(s => [s.ServerID, s.FunctionalRole, label(s.FunctionalRole), s.OSFamily, label(s.OSFamily)].some(v => v.toLowerCase().includes(search))).map(s => s.ServerID));
@@ -64,3 +83,30 @@ export function csv(rows: InventoryRow[], columns: string[]) {
   const escape = (v: string) => `"${(/^[=+@\-\t\r]/.test(v) ? "'" : "") + v.replaceAll('"', '""')}"`;
   return "\uFEFF" + [columns, ...rows.map(r => columns.map(c => r[c] ?? ""))].map(row => row.map(escape).join(",")).join("\r\n");
 }
+
+export const slaDaysOptions = [7, 30, 90, 180] as const;
+export const criticalities = ["CRITICAL", "VERY_HIGH", "HIGH", "MEDIUM", "LOW"] as const;
+export type Criticality = typeof criticalities[number];
+export type SlaDays = typeof slaDaysOptions[number];
+export type SlaPolicy = Record<Criticality, SlaDays>;
+export const defaultSlaPolicy: SlaPolicy = { CRITICAL: 7, VERY_HIGH: 30, HIGH: 30, MEDIUM: 90, LOW: 180 };
+const ageUpperBounds = new Map([["AGE_0_7D", 7], ["AGE_8_30D", 30], ["AGE_31_90D", 90], ["AGE_91_180D", 180], ["AGE_GT180D", Infinity]]);
+export const isSlaDays = (value: unknown): value is SlaDays => slaDaysOptions.some(days => value === days);
+export function applySla(snapshot: Snapshot, policy: SlaPolicy): Snapshot {
+  if (!criticalities.every(level => isSlaDays(policy[level]))) throw new Error("Plazo SLA no compatible con los rangos del archivo");
+  const daysByCriticality = new Map<string, SlaDays>(criticalities.map(level => [level, policy[level]]));
+  const daysByServer = new Map(snapshot.servers.map(server => [server.ServerID, daysByCriticality.get(server.AssetCriticality)]));
+  return { ...snapshot, findings: snapshot.findings.map(finding => {
+    const days = daysByServer.get(finding.ServerID);
+    const age = ageUpperBounds.get(finding.AgeBand);
+    let status = "NOT_APPLICABLE";
+    if (isOpen(finding)) status = days === undefined || age === undefined ? "UNKNOWN" : age <= days ? "WITHIN" : "BREACHED";
+    return {
+      ...finding,
+      OriginalSLAStatus: finding.OriginalSLAStatus ?? finding.SLAStatus,
+      SLATargetDays: status === "NOT_APPLICABLE" || days === undefined ? "" : String(days),
+      SLAStatus: status,
+    };
+  }) };
+}
+import countryCodes from "./country-codes.json" with { type: "json" };

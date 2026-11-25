@@ -4,6 +4,8 @@ Dashboard local para importar el Excel académico de servidores y vulnerabilidad
 
 ## Ejecutar
 
+La [guía de Docker](../README.md#ejecutar-con-docker) incluye la construcción de la imagen, el puerto local y la persistencia de SQLite.
+
 Requiere Node.js 22.18 o posterior y Python 3.10 o posterior en PATH. Validado con Node 26.2.0 y Python 3 del equipo.
 
 ```bash
@@ -18,10 +20,11 @@ Abrir http://localhost:3040. El servidor se limita a `127.0.0.1`; no hay autenti
 
 1. Pulsar **Importar mi Excel** o abrir **Cargas de datos** para seleccionar un archivo propio. La instalación empieza vacía; no se distribuyen archivos Excel ni bases de datos.
 2. Indicar nombre y fecha que representan los datos. La fecha de importación se registra por separado.
-3. Seleccionar el corte activo. Combinar filtros por región, ambiente, sistema operativo, estado, severidad, exposición, criticidad, categoría, antigüedad y SLA, además de búsqueda.
-4. Seleccionar una zona del atlas o una celda del heatmap para filtrar. El globo 3D usa la referencia visual solicitada: Norte en EUA, Centro en México y Sur en Brasil. No son ubicaciones contenidas en el Excel. Sus puntos blancos, rutas y destellos son ilustrativos; se puede pausar, arrastrar o centrar América.
+3. Seleccionar el corte activo. Combinar filtros por región, país cuando el Excel lo incluye, ambiente, sistema operativo, estado, severidad, exposición, criticidad, categoría, antigüedad y SLA, además de búsqueda.
+4. Seleccionar un país, una región o una celda del mapa de calor para filtrar. El globo marca los países de la hoja Servidores. Si el Excel solo trae RegionGroup, muestra referencias ilustrativas en EUA, México y Brasil para Norte, Centro y Sur.
 5. Explorar tablas paginadas, abrir todos los campos del registro y exportar los registros filtrados a CSV; la exportación incluye todas las páginas.
-6. En **Comparar cortes**, elegir otra carga como referencia. Se separan IDs nuevos, ausentes, cambios a remediado, regreso a pendientes y cambios de servidor. Un ID ausente no equivale a remediación.
+6. En **Cumplimiento del SLA**, configurar los días permitidos por criticidad del servidor. La política se guarda en el navegador y se aplica a ambos cortes al comparar.
+7. En **Comparar cortes**, elegir otra carga como referencia. Se separan IDs nuevos, ausentes, cambios a remediado, regreso a pendientes y cambios de servidor. Un ID ausente no equivale a remediación.
 
 La navegación lateral se puede contraer y ajustar de ancho; en móvil se abre con **Menú**. Todas las filas de servidores y hallazgos abren su detalle al pulsar cualquier celda; el botón de detalle permite hacerlo con teclado. Los filtros, cortes y orden usan dropdowns animados con flechas, Inicio/Fin, Enter, Escape y cierre al pulsar fuera. Las pestañas tienen una transición breve, desactivada con movimiento reducido.
 
@@ -35,13 +38,13 @@ La identidad combina FEMSA V1 y V3, con tipografía mayor, cuatro indicadores pr
 
 - `.xlsx`, hasta 20 MB; máximo 10,000 servidores y 100,000 hallazgos. Contenido descomprimido hasta 150 MB y 3,000 entradas ZIP.
 - Hojas `Servidores` y `Vulnerabilidades`. Se admite variación de mayúsculas en los nombres de hoja. Encabezados originales dentro de las primeras 25 filas.
-- Las 17 columnas de servidores y las 20 de vulnerabilidades se enumeran en `scripts/read-inventory.py`, junto con las categorías admitidas.
+- Las 17 columnas de servidores y las 20 de vulnerabilidades se enumeran en `scripts/read-inventory.py`, junto con las categorías admitidas. En Servidores, la columna opcional `País` (también `Country` o `CountryCode`) acepta nombres en español o inglés y códigos ISO 3166-1. Los valores vacíos o sin correspondencia se conservan sin marcador.
 - Se rechazan campos vacíos, categorías no admitidas, IDs duplicados, referencias inexistentes y fórmulas en las columnas del contrato. Debe existir al menos un servidor; cero hallazgos es válido.
 - Se conservan como observaciones las diferencias de volumen declarado, criticidad, orden de rangos de antigüedad y SLA incumplido en remediados. Columnas adicionales se ignoran con aviso.
 - Mismo archivo y misma fecha: duplicado rechazado. Mismo archivo y distinta fecha: se conserva con observación.
 - No se ejecutan fórmulas, macros ni conexiones. Se guardan los registros importados, metadata y huella SHA-256; no se almacena el archivo Excel original.
 
-Los indicadores usan el detalle: pendientes = NEW + ACTIVE + REOPENED; vencidos = pendientes con BREACHED. Los niveles 1–5 se conservan sin asignar CVSS. Los rangos temporales no permiten días exactos ni tiempos medios de remediación. ComplianceFlag y EncryptionContext tienen interpretaciones provisionales, documentadas en **Criterios del análisis**.
+Los indicadores usan el detalle: pendientes = NEW + ACTIVE + REOPENED; vencidos = pendientes cuyo rango de antigüedad supera el plazo de la criticidad del servidor. Los límites admitidos son 7, 30, 90 y 180 días. El estado SLA del Excel se conserva en la ficha técnica y el CSV. Los niveles 1–5 se conservan sin asignar CVSS. Los rangos temporales no permiten días exactos ni tiempos medios de remediación. ComplianceFlag y EncryptionContext tienen interpretaciones provisionales, documentadas en **Criterios del análisis**.
 
 ## Persistencia y API
 
@@ -60,13 +63,14 @@ npm run check
 
 # Opcionales: requieren el fixture privado descrito debajo.
 npm run test:inventory
+node scripts/test-sla.mjs
 npm run test:dashboard
 npm run test:ui
 ```
 
 Las suites `test:inventory` y `test:dashboard` dependen del archivo original privado en `../OneDrive_1_10-6-2026/Dataset Académico Parches en Servidores.xlsx`, excluido de Git. Sus expectativas corresponden a ese fixture; no se ejecutan con un Excel arbitrario. Este archivo no es necesario para usar la app.
 
-`check` genera los tipos de Next.js y ejecuta TypeScript y compilación de producción, también en una instalación limpia. `test:inventory` incluye 10 casos del lector (incluidos rechazos de datos dentro de Excel válidos) y controles de métricas, filtros, comparación y CSV. `test:dashboard` inicia producción en 127.0.0.1:3041 con una base temporal: prueba carga real, recarga, filtros, mapa por teclado, heatmap, tablas, CSV completo, errores, duplicados y comparación de dos Excel, en escritorio 1440px y móvil 390px. También comprueba tipografía mayor, análisis inicialmente cerrados, ficha amplia, orden por antigüedad y píxeles Canvas durante animación/pausa/arrastre. No altera las cargas del usuario. Evidencia en `.impeccable/review/dashboard/`.
+`check` genera los tipos de Next.js y ejecuta TypeScript y compilación de producción, también en una instalación limpia. `test:inventory` incluye 12 casos del lector (incluidos rechazos de datos dentro de Excel válidos) y controles de métricas, filtros, comparación y CSV. `test:dashboard` inicia producción en 127.0.0.1:3041 con una base temporal: prueba carga real, recarga, filtros, mapa por teclado, plazos por criticidad y exportación PDF, heatmap, tablas, CSV completo, errores, duplicados y comparación de dos Excel, en escritorio 1440px y móvil 390px. También comprueba tipografía mayor, análisis inicialmente cerrados, ficha amplia, orden por antigüedad y píxeles Canvas durante animación/pausa/arrastre. Si se indica `FEMSA_TEST_COMPARISON_XLSX` con el corte simulado de la demo, también verifica selección de país, gesto táctil y los cinco grupos de cambios. Usa una base temporal. Evidencia en `.impeccable/review/dashboard/`.
 
 `test:ui` requiere el servidor activo en 3040 y recorre las 24 propuestas originales en /propuestas. No hay CI configurado; resultados actuales en VERIFICATION.md.
 

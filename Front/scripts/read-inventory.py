@@ -12,6 +12,7 @@ from xml.etree import ElementTree as ET
 
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 SERVER_COLUMNS = "ServerID OSFamily OSLifecycle InfrastructureType AssetType FunctionalRole Environment RegionGroup AssetCriticality CPUCapacityBand MemoryCapacityBand ArchitectureBand InventoryFreshnessBand BootAgeBand ExposureCategory RiskBand VulnerabilityVolumeBand".split()
+COUNTRY_HEADERS = {"country", "país", "pais", "countrycode", "country code", "código de país", "codigo de pais"}
 FINDING_COLUMNS = "FindingID ServerID VulnerabilityTypeID FunctionalCategory Severity FindingStatus AgeBand LastSeenBand DetectionFrequencyBand ReopenBand ExploitabilityCategory MalwareAssociation ComplianceFlag PortCategory ProtocolCategory EncryptionContext RemediationCategory SLAStatus AssetCriticality FindingRiskBand".split()
 AGES = "AGE_0_7D AGE_8_30D AGE_31_90D AGE_91_180D AGE_GT180D".split()
 CRITICALITY = "LOW MEDIUM HIGH VERY_HIGH CRITICAL".split()
@@ -85,7 +86,7 @@ def read_inventory(data):
                 raise ValueError("Referencia de hoja no válida.")
             sheets[sheet.attrib["name"].strip().casefold()] = path
 
-        def read_sheet(name, columns, limit):
+        def read_sheet(name, columns, limit, allow_country=False):
             if name.casefold() not in sheets:
                 error(f"Falta la hoja {name}.")
                 return []
@@ -111,25 +112,29 @@ def read_inventory(data):
                     continue
                 if headers is None:
                     if columns[0] in cells.values():
-                        headers = cells
+                        headers = {
+                            col: "Country" if allow_country and heading.casefold() in COUNTRY_HEADERS else heading
+                            for col, heading in cells.items()
+                        }
                         if len(set(headers.values())) != len(headers.values()):
                             error(f"{name}, fila {number}: encabezados duplicados.")
                         missing = set(columns) - set(headers.values())
                         if missing:
                             error(f"{name}: faltan columnas: {', '.join(sorted(missing))}.")
                             return []
-                        extras = set(headers.values()) - set(columns) - {""}
+                        accepted = set(columns) | ({"Country"} if allow_country else set())
+                        extras = set(headers.values()) - accepted - {""}
                         if extras:
                             warnings.append({"code": "extra_columns", "count": len(extras), "message": f"{name}: se ignoraron columnas adicionales: {', '.join(sorted(extras))}."})
                     elif number > 25:
                         break
                     continue
-                record = {label: cells.get(col, "") for col, label in headers.items() if label in columns}
+                record = {label: cells.get(col, "") for col, label in headers.items() if label in accepted}
                 for col in formulas:
-                    if headers.get(col) in columns:
+                    if headers.get(col) in accepted:
                         error(f"{name}, fila {number}, {headers[col]}: usa un valor fijo en lugar de una fórmula.")
                 for key, value in record.items():
-                    if not value:
+                    if not value and key in columns:
                         error(f"{name}, fila {number}: {key} está vacío.")
                     elif key in ENUMS:
                         normalized = value.upper()
@@ -147,7 +152,7 @@ def read_inventory(data):
                 error(f"{name}: no se encontró el encabezado {columns[0]} en las primeras 25 filas.")
             return result
 
-        servers = read_sheet("Servidores", SERVER_COLUMNS, 10000)
+        servers = read_sheet("Servidores", SERVER_COLUMNS, 10000, allow_country=True)
         findings = read_sheet("Vulnerabilidades", FINDING_COLUMNS, 100000)
         if not servers:
             error("La hoja Servidores no contiene registros.")

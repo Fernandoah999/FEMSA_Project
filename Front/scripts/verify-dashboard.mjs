@@ -51,6 +51,15 @@ async function selectOption(page, name, value) {
   await page.getByRole("combobox", { name, exact: true }).click();
   await page.getByRole("listbox", { name, exact: true }).locator(`[role="option"][data-value=${JSON.stringify(value)}]`).click();
 }
+async function downloadReport(page, name = "Reporte ejecutivo") {
+  const menu = page.getByText("Generar reporte", { exact: true });
+  await menu.click();
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name, exact: true }).click();
+  const pdf = await readFile(await (await pending).path());
+  await menu.click();
+  return pdf;
+}
 try {
   await waitForServer();
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
@@ -71,7 +80,7 @@ try {
   await page.getByRole("region", { name: "Indicadores del alcance" }).waitFor();
   await page.getByRole("button", { name: "Cerrar notificación" }).click();
   const metricText = await page.getByRole("region", { name: "Indicadores del alcance" }).innerText();
-  for (const n of ["246", "2,875", "561", "257"]) assert.ok(metricText.includes(n), `Missing source metric ${n}`);
+  for (const n of ["246", "2,875", "561", "1,569"]) assert.ok(metricText.includes(n), `Missing source metric ${n}`);
   checks.push("Import academic XLSX through UI: 246 servers, 3,450 findings, correct pending/high/SLA counts");
   const baseline = (await (await fetch(base + "/api/snapshots")).json())[0];
   await page.reload({ waitUntil: "networkidle" });
@@ -131,10 +140,10 @@ try {
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
   await navigate(page, "Panorama general");
   await page.getByRole("button", { name: /Pendientes fuera de SLA/ }).click();
-  assert.ok((await page.getByRole("region", { name: "Hallazgos del alcance" }).innerText()).includes("257 registros"));
+  assert.ok((await page.getByRole("region", { name: "Hallazgos del alcance" }).innerText()).includes("1,569 registros"));
   await page.getByRole("button", { name: /^Restablecer \(/ }).click();
   await navigate(page, "Panorama general");
-  checks.push("KPI drilldowns preserve scope: 561 high-severity pending records and 257 overdue pending records");
+  checks.push("KPI drilldowns preserve scope: 561 high-severity pending records and 1,569 overdue pending records");
   await page.locator('[data-globe-ready="true"][data-motion="paused"]').waitFor();
   assert.equal(await page.locator('[data-analysis-trigger]').count(), 5);
   assert.equal(await page.locator('[data-analysis-trigger][aria-expanded="true"]').count(), 0, "Secondary analysis must start collapsed");
@@ -142,8 +151,41 @@ try {
   const inventoryBox = await page.locator('[data-analysis-item="inventory"]').boundingBox();
   const globeBox = await page.getByRole("region", { name: "Globo regional" }).boundingBox();
   assert.ok(Math.abs(inventoryBox.x - questionsBox.x) < 2, "Supplementary analysis must align below questions");
-  assert.ok(inventoryBox.y - questionsBox.y - questionsBox.height <= 30, "The former empty area must be used directly below questions");
-  assert.ok(inventoryBox.y < globeBox.y + globeBox.height, "Supplementary analysis must start alongside the globe");
+  assert.ok(inventoryBox.y - questionsBox.y - questionsBox.height <= 34, "Supplementary analysis starts below questions");
+  const chartsBox = await page.getByRole("region", { name: "Gráficas del alcance" }).boundingBox();
+  const sla = page.getByRole("region", { name: "Cumplimiento del SLA" });
+  const slaBox = await sla.boundingBox();
+  assert.ok(Math.abs(globeBox.y + globeBox.height - chartsBox.y - chartsBox.height) <= 2, "Map and charts end at the same height");
+  assert.ok(slaBox.y > globeBox.y + globeBox.height && slaBox.width > globeBox.width, "SLA and its configuration occupy the full next row");
+  const criticalDeadline = sla.getByLabel("Crítica", { exact: true });
+  await criticalDeadline.selectOption("180");
+  assert.notEqual(await sla.getByText("Fuera del plazo", { exact: true }).locator("..").locator("strong").innerText(), "1,569");
+  await page.reload();
+  await expect(criticalDeadline).toHaveValue("180");
+  const reportBytes = await downloadReport(page);
+  const reportPdf = reportBytes.toString("latin1");
+  assert.match(reportPdf, /SLA por criticidad del activo: Crítica 180 días, Muy alta 30 días/);
+  assert.match(reportPdf, /Gravedad 4-5.*máx\. 5/);
+  assert.doesNotMatch(reportPdf, /CVSS/i);
+  assert.match(reportPdf, /Cada punto marca el conteo/);
+  assert.match(reportPdf, /Eje ampliado de 570 a 580 hallazgos.*diferencia entre extremos es de 6/);
+  assert.match(reportPdf, /Cada segmento cuenta hallazgos pendientes/);
+  assert.match(reportPdf, /Cada celda cuenta servidores/);
+  assert.match(reportPdf, /0\.72 0\.11 0\.16 rg/);
+  assert.match(reportPdf, /1,337 hallazgos indican una última observación/);
+  await writeFile(output + "/reporte-ejecutivo.pdf", reportBytes);
+  await page.getByRole("button", { name: "Más filtros", exact: true }).click();
+  await selectOption(page, "Antigüedad", "AGE_0_7D");
+  const singleBandPdf = (await downloadReport(page)).toString("latin1");
+  assert.match(singleBandPdf, /Cada barra muestra el conteo de hallazgos en un rango de antigüedad/);
+  assert.doesNotMatch(singleBandPdf, /Eje ampliado/);
+  assert.doesNotMatch((await downloadReport(page, "Reporte técnico")).toString("latin1"), /CVSS/i);
+  await page.getByRole("button", { name: /^Restablecer \(/ }).click();
+  await page.getByRole("button", { name: "Menos filtros", exact: true }).click();
+  checks.push("Executive PDF compares close age counts on a zoomed axis and uses bars for widely spaced counts. Both reports use the Excel severity scale.");
+  await criticalDeadline.selectOption("7");
+  await expect(sla.getByText("Fuera del plazo", { exact: true }).locator("..").locator("strong")).toHaveText("1,569");
+  checks.push("Changing the critical-asset SLA updates the chart, persists after reload and is included in the exported PDF");
   const quality = page.getByRole("button", { name: "¿Qué debo revisar?", exact: true });
   await quality.focus(); await page.keyboard.press("Enter");
   await expect(quality).toHaveAttribute("aria-expanded", "true");
@@ -196,7 +238,7 @@ try {
   await navigate(page, "Servidores");
   await page.getByRole("button", { name: "Página siguiente" }).click();
   await page.getByRole("textbox", { name: "Buscar en el inventario" }).fill("srv-0001");
-  assert.equal(await page.locator("tbody tr").count(), 1);
+  await expect(page.locator("tbody tr")).toHaveCount(1);
   const row = page.locator("tbody tr").first();
   const tableType = await row.evaluate(el => ({ cell: getComputedStyle(el.cells[3]).fontSize, secondary: getComputedStyle(el.querySelector("small")).fontSize, id: getComputedStyle(el.querySelector("td span")).fontSize }));
   assert.ok(parseFloat(tableType.cell) >= 20 && parseFloat(tableType.secondary) >= 17 && parseFloat(tableType.id) >= 19, JSON.stringify(tableType));
@@ -275,7 +317,7 @@ sys.stdout.buffer.write(mutate(change))
     const button = page.getByRole("button", { name: new RegExp(name) });
     assert.ok((await button.innerText()).includes("1"), `Expected one change: ${name}`);
     await button.click();
-    assert.equal(await page.locator("tbody").last().locator("tr").count(), 1);
+    await expect(page.locator("tbody").last().locator("tr")).toHaveCount(1);
   }
   await noOverflow(page, "comparison desktop");
   await capture(page, "compare-desktop.png");
@@ -352,17 +394,80 @@ sys.stdout.buffer.write(mutate(change))
     const selectedGlobe = page.getByRole("img", { name: /Globo 3D de puntos/ });
     await expect(selectedGlobe).toHaveAttribute("data-selected-region", region);
     await expect(selectedGlobe).toHaveAttribute("aria-label", new RegExp(`Región ${name} seleccionada`));
-    const filledPixels = await selectedGlobe.evaluate(canvas => {
+    await selectedGlobe.scrollIntoViewIfNeeded();
+    const fill = await selectedGlobe.evaluate(canvas => {
       const pixels = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
       let count = 0;
       for (let i = 0; i < pixels.length; i += 4) if (pixels[i] > 95 && pixels[i + 1] > 45 && pixels[i + 2] > 75 && pixels[i] - pixels[i + 1] > 40) count++;
-      return count;
+      const center = canvas.getContext("2d").getImageData(Math.floor(canvas.width / 2) - 5, Math.floor(canvas.height / 2) - 5, 10, 10).data;
+      let centerCount = 0;
+      for (let i = 0; i < center.length; i += 4) if (center[i] - center[i + 1] > 30) centerCount++;
+      return { count, centerCount };
     });
-    assert.ok(filledPixels > 500, `${region} must have a visible filled territory, measured ${filledPixels} pixels`);
-    await selectedGlobe.scrollIntoViewIfNeeded();
+    assert.ok(fill.count > 100 && fill.centerCount > 30, `${region} must have a visible filled territory and center on it: ${JSON.stringify(fill)}`);
     await capture(page, `globe-selected-${region}.png`);
   }
   checks.push("All three reference countries render a measurable wine fill, boundary and selected label; selected map redraw confirmed even with reduced motion");
+  const comparisonWorkbook = process.env.FEMSA_TEST_COMPARISON_XLSX;
+  if (comparisonWorkbook) {
+    await navigate(page, /Cargas de datos/);
+    await page.getByLabel("Archivo Excel", { exact: true }).setInputFiles(comparisonWorkbook);
+    await page.getByLabel("Nombre del corte", { exact: true }).fill("Corte simulado");
+    await page.getByLabel("Fecha de referencia", { exact: true }).fill("2026-10-31");
+    await page.getByRole("button", { name: "Validar y guardar corte" }).click();
+    const map = page.getByRole("region", { name: "Globo por país" });
+    await expect(map).toBeVisible();
+    await page.getByRole("button", { name: "Cerrar notificación" }).click();
+    const syntheticPdf = await downloadReport(page);
+    assert.match(syntheticPdf.toString("latin1"), /La importación terminó sin avisos de consistencia/);
+    assert.match(syntheticPdf.toString("latin1"), /Eje ampliado de 550 a 600 hallazgos.*diferencia entre extremos es de 21/);
+    await writeFile(output + "/reporte-ejecutivo-simulado.pdf", syntheticPdf);
+    const countryList = map.getByRole("group", { name: "Seleccionar país del globo" });
+    await expect(countryList.getByRole("button")).toHaveCount(10);
+    assert.ok(await countryList.evaluate(el => el.scrollHeight <= el.clientHeight + 1), "The whole country list should fit in the map card");
+    const mexico = countryList.getByRole("button", { name: /^México/ });
+    await mexico.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("combobox", { name: "País", exact: true })).toHaveAttribute("data-value", "MX");
+    await expect(map.getByRole("img", { name: /Globo con países del Excel/ })).toHaveAttribute("data-selected-region", "MX");
+    await expect(map.getByRole("button", { name: /Filtrar país México/ })).toBeVisible();
+    const mexicoPending = Number((await mexico.innerText()).match(/([\d,]+) pendientes/)[1].replaceAll(",", ""));
+    await expect(page.getByRole("button", { name: /Hallazgos pendientes/ }).getByText(mexicoPending.toLocaleString("es-MX"), { exact: true })).toBeVisible();
+    await capture(page, "pais-desktop.png");
+    const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, reducedMotion: "reduce" });
+    try {
+      const mobile = await mobileContext.newPage();
+      await mobile.goto(base);
+      const mobileMap = mobile.getByRole("region", { name: "Globo por país" });
+      const mobileCountries = mobileMap.getByRole("group", { name: "Seleccionar país del globo" });
+      const mobileMexico = mobileCountries.getByRole("button", { name: /^México/ });
+      await mobileMexico.tap();
+      assert.ok(await mobileCountries.evaluate(el => el.scrollHeight <= el.clientHeight + 1), "Country list should not clip on mobile");
+      const canvas = mobileMap.getByRole("img", { name: /Globo con países del Excel/ });
+      await expect(canvas).toHaveAttribute("data-selected-region", "MX");
+      await noOverflow(mobile, "country overview mobile");
+      await canvas.scrollIntoViewIfNeeded();
+      const frame = await canvas.evaluate(el => el.toDataURL());
+      const area = await canvas.boundingBox();
+      const touch = await mobileContext.newCDPSession(mobile);
+      const touchPoint = { x: area.x + area.width * .32, y: area.y + area.height * .6 };
+      await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [touchPoint] });
+      await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...touchPoint, x: touchPoint.x + 65 }] });
+      await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      assert.notEqual(await canvas.evaluate(el => el.toDataURL()), frame, "The globe should rotate during a horizontal touch gesture");
+      await capture(mobile, "pais-mobile.png");
+    } finally {
+      await mobileContext.close();
+    }
+    await page.getByRole("button", { name: /^Restablecer \(/ }).click();
+    await navigate(page, "Comparar cortes");
+    await selectOption(page, "Corte de referencia", baseline.id);
+    const changes = page.getByRole("region", { name: "Cambios en los hallazgos" });
+    for (const [title, count] of [["Pasaron a remediados", 40], ["Volvieron a pendientes", 12], ["IDs nuevos", 24], ["IDs ausentes", 18], ["Cambio de servidor", 9]]) {
+      await expect(changes.getByRole("button", { name: new RegExp(title) })).toHaveText(`${title}${count}`);
+    }
+    checks.push("Synthetic XLSX imports through the UI, country selection updates the globe and KPIs, touch rotates the globe, and all five change groups match the reference");
+  }
   assert.deepEqual(errors, []);
   await rm(output + "/failure.json", { force: true });
   await writeFile(output + "/verification.json", JSON.stringify({ passed: true, checks, errors }, null, 2));

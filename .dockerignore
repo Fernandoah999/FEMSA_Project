@@ -1,0 +1,12 @@
+*
+!Front
+Front/*
+!Front/package.json
+!Front/package-lock.json
+!Front/next.config.ts
+!Front/tsconfig.json
+!Front/src
+!Front/public
+!Front/scripts
+Front/scripts/*
+!Front/scripts/read-inventory.py

@@ -1,11 +1,31 @@
-import { format, label, regions, severityLabel, type Filters, type InventoryRow, type Snapshot } from "./inventory";
+import { countryLabel, criticalities, format, label, regions, severityLabel, type Filters, type InventoryRow, type SlaPolicy, type Snapshot } from "./inventory";
 
-type ReportData = { snapshot: Snapshot; filters: Filters; servers: InventoryRow[]; findings: InventoryRow[]; allFindings: InventoryRow[]; metrics: { servers: number; open: number; high: number; overdue: number }; kind: "executive" | "technical" };
+type ReportData = { slaPolicy: SlaPolicy; snapshot: Snapshot; filters: Filters; servers: InventoryRow[]; findings: InventoryRow[]; allFindings: InventoryRow[]; metrics: { servers: number; open: number; high: number; overdue: number }; kind: "executive" | "technical" };
+type BarEntry = [name: string, count: number, color?: string];
+type CountAxis = { minimum: number; maximum: number; intervals: number };
+const warningTitles: Record<string, string> = {
+  volume: "Volumen declarado",
+  criticality: "Criticidad del servidor",
+  age: "Rangos de antigüedad",
+  closed_sla: "SLA de hallazgos remediados",
+  extra_columns: "Columnas adicionales",
+  same_content: "Archivo repetido en otra fecha",
+};
 const clean = (value: string) => value.replace(/[–—]/g, "-").replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[^\x20-\xFF]/g, "?");
 const literal = (value: string) => clean(value).replace(/([\\()])/g, "\\$1");
 const wrap = (value: string, limit: number): string[] => { const words = clean(value).split(/\s+/); const lines: string[] = []; let line = ""; for (let word of words) { while (word.length > limit) { if (line) { lines.push(line); line = ""; } lines.push(word.slice(0, limit)); word = word.slice(limit); } if (line && line.length + word.length + 1 > limit) { lines.push(line); line = ""; } line += (line ? " " : "") + word; } if (line) lines.push(line); return lines.length ? lines : [""]; };
 const encode = (value: string) => Uint8Array.from(value, c => c.charCodeAt(0) & 255);
 const concat = (parts: Uint8Array[]) => { const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let pos = 0; for (const p of parts) { out.set(p, pos); pos += p.length; } return out; };
+
+function countScale(minimum: number, maximum: number, tickLimit: number): CountAxis {
+  const target = Math.max(1, (maximum - minimum) / tickLimit);
+  const magnitude = 10 ** Math.floor(Math.log10(target));
+  const steps = magnitude === 1 ? [1, 2, 5, 10] : [1, 2, 2.5, 5, 10];
+  const step = steps.map(multiplier => multiplier * magnitude).find(size => size >= target) ?? 10 * magnitude;
+  const lower = Math.floor(minimum / step) * step;
+  const intervals = Math.max(1, Math.ceil((maximum - lower) / step));
+  return { minimum: lower, maximum: lower + intervals * step, intervals };
+}
 
 /** A self-contained, paginated PDF using the built-in Helvetica fonts and WinAnsi encoding. */
 export function buildReportPdf(data: ReportData): Uint8Array {
@@ -20,16 +40,36 @@ export function buildReportPdf(data: ReportData): Uint8Array {
   const regionValues = [...regions, ...new Set(servers.map(server => server.RegionGroup).filter(region => !regions.includes(region)))];
   const regionData = regionValues.map(region => { const regionalServers = servers.filter(server => server.RegionGroup === region); const ids = new Set(regionalServers.map(server => server.ServerID)); return { region, servers: regionalServers, findings: findings.filter(f => ids.has(f.ServerID)) }; }).filter(group => group.servers.length);
   const niceMax = (value: number) => { const step = Math.max(1, 10 ** Math.floor(Math.log10(Math.max(1, value))) / 2); return Math.ceil(Math.max(1, value) / (step * 4)) * step * 4; };
-  const horizontalAxis = (top: number, bottom: number, left: number, width: number, maximum: number, unit: string) => {
-    for (let i = 0; i <= 4; i++) { const x = left + width * i / 4; commands.push(`0.85 0.89 0.93 RG 0.5 w ${x} ${top} m ${x} ${bottom} l S`); text(x - 5, bottom - 14, format(maximum * i / 4), 8); }
+  const horizontalAxis = (top: number, bottom: number, left: number, width: number, axis: CountAxis, unit: string) => {
+    const step = (axis.maximum - axis.minimum) / axis.intervals;
+    for (let i = 0; i <= axis.intervals; i++) {
+      const x = left + width * i / axis.intervals;
+      commands.push(`0.85 0.89 0.93 RG 0.5 w ${x} ${top} m ${x} ${bottom} l S`);
+      text(x - 5, bottom - 14, format(axis.minimum + step * i), 8);
+    }
     line(left, bottom, left + width, "0.35 0.43 0.53"); text(left + 35, bottom - 30, unit, 9, true);
   };
-  const barChart = (title: string, caption: string, entries: [string, number][], unit = "Cantidad de hallazgos pendientes") => {
+  const countChart = (title: string, caption: string, entries: BarEntry[], unit = "Cantidad de hallazgos pendientes", scale?: CountAxis) => {
     ensure(135 + entries.length * 28); heading(title); paragraph(caption, { size: 9, color: "0.45 0.40 0.42" }); y -= 8;
-    const maximum = niceMax(Math.max(1, ...entries.map(([, value]) => value)));
-    text(40, y, "Categoría (eje Y)", 9, true); y -= 24;
-    horizontalAxis(y + 12, y - entries.length * 28 + 10, 220, 240, maximum, `${unit} (eje X)`);
-    entries.forEach(([name, count]) => { text(40, y, name, 9); if (count) commands.push(`0.15 0.39 0.92 rg 220 ${y - 2} ${(240 * count / maximum).toFixed(2)} 11 re f`); text(480, y, format(count), 10, true); y -= 28; });
+    const axis = scale ?? { minimum: 0, maximum: niceMax(Math.max(1, ...entries.map(([, value]) => value))), intervals: 4 };
+    const left = scale ? 172 : 220;
+    const width = scale ? 330 : 240;
+    if (!scale) { text(40, y, "Categoría (eje Y)", 9, true); y -= 24; }
+    horizontalAxis(y + 12, y - entries.length * 28 + 10, left, width, axis, scale ? unit : `${unit} (eje X)`);
+    for (const [name, count, color] of entries) {
+      const offset = width * (count - axis.minimum) / (axis.maximum - axis.minimum);
+      const x = left + offset;
+      const barColor = color ?? (name === "Dentro del plazo" ? "0.09 0.64 0.29" : name === "Fuera del plazo" ? "0.86 0.15 0.15" : "0.15 0.39 0.92");
+      text(40, y, name, scale ? 10 : 9, !!scale);
+      if (axis.minimum > 0) {
+        line(left, y + 3, left + width, "0.88 0.91 0.95");
+        commands.push(`q ${barColor} rg 1 0 0 1 ${x.toFixed(2)} ${y + 3} cm 4 0 m 4 2.21 2.21 4 0 4 c -2.21 4 -4 2.21 -4 0 c -4 -2.21 -2.21 -4 0 -4 c 2.21 -4 4 -2.21 4 0 c h f Q`);
+      } else if (count) {
+        commands.push(`${barColor} rg ${left} ${y - 2} ${offset.toFixed(2)} ${scale ? 13 : 11} re f`);
+      }
+      text(scale ? x + 8 : 480, y, format(count), 10, true);
+      y -= 28;
+    }
     y -= 40;
   };
   const regionalCriticalityChart = () => {
@@ -42,12 +82,12 @@ export function buildReportPdf(data: ReportData): Uint8Array {
     ];
     const serversById = new Map(servers.map(server => [server.ServerID, server]));
     ensure(150 + regionData.length * 52); heading("Pendientes por región y criticidad");
-    paragraph(kind === "executive" ? "Muestra dónde se concentran los problemas pendientes y la importancia de los servidores afectados." : "Hallazgos pendientes agrupados por la criticidad del servidor; el total aparece al final de cada barra.", { size: 9, color: "0.45 0.40 0.42" });
+    paragraph(kind === "executive" ? "Cada segmento cuenta hallazgos pendientes en servidores de una criticidad. Un servidor puede aportar varios hallazgos." : "Hallazgos pendientes agrupados por la criticidad del servidor; el total aparece al final de cada barra.", { size: 9, color: "0.45 0.40 0.42" });
     y -= 5;
     categories.forEach((category, i) => { const x = 40 + i * 103; commands.push(`${category.color} rg ${x} ${y - 2} 9 9 re f`); text(x + 14, y - 1, category.name, 9); }); y -= 28;
     const max = niceMax(Math.max(1, ...regionData.map(group => group.findings.length)));
-    text(40, y + 7, "Región (eje Y)", 8, true);
-    horizontalAxis(y + 10, y - regionData.length * 48 + 15, 135, 330, max, "Cantidad de hallazgos pendientes (eje X)");
+    if (kind === "technical") text(40, y + 7, "Región (eje Y)", 8, true);
+    horizontalAxis(y + 10, y - regionData.length * 48 + 15, 135, 330, { minimum: 0, maximum: max, intervals: 4 }, "Cantidad de hallazgos pendientes (eje X)");
     for (const group of regionData) {
       ensure(50); text(40, y, label(group.region), 10, true); let x = 135;
       const counts = categories.map(category => group.findings.filter(f => serversById.get(f.ServerID)?.AssetCriticality === category.key).length);
@@ -64,7 +104,7 @@ export function buildReportPdf(data: ReportData): Uint8Array {
   const regionalMatrix = (type: "severity" | "criticality") => {
     const isSeverity = type === "severity";
     ensure(95 + regionData.length * 32); heading(isSeverity ? "Severidad por región" : "Criticidad por región");
-    paragraph(kind === "executive" ? (isSeverity ? "Compara la gravedad de los problemas pendientes en cada región; los niveles 4 y 5 son los más altos." : "Muestra cuántos servidores hay en cada región según su importancia para la organización.") : (isSeverity ? "Hallazgos pendientes por región y nivel de severidad." : "Servidores por región y criticidad del activo; cada servidor se cuenta una vez."), { size: 9, color: "0.45 0.40 0.42" });
+    paragraph(kind === "executive" ? (isSeverity ? "Cuenta hallazgos pendientes por región y nivel de gravedad. El máximo de la escala es 5." : "Cada celda cuenta servidores por región y criticidad. Cada servidor aparece una vez.") : (isSeverity ? "Hallazgos pendientes por región y nivel de severidad." : "Servidores por región y criticidad del activo; cada servidor se cuenta una vez."), { size: 9, color: "0.45 0.40 0.42" });
     paragraph(isSeverity ? "Un tono más intenso indica más problemas dentro del total seleccionado." : "Un tono más intenso indica más servidores dentro del total seleccionado.", { size: 9, color: "0.45 0.40 0.42" });
     const headings = isSeverity ? ["Nivel 1", "Nivel 2", "Nivel 3", "Nivel 4", "Nivel 5"] : ["Baja", "Media", "Alta", "Muy alta", "Crítica"];
     const values = ["LOW", "MEDIUM", "HIGH", "VERY_HIGH", "CRITICAL"];
@@ -79,19 +119,19 @@ export function buildReportPdf(data: ReportData): Uint8Array {
   newPage();
   text(40, y, kind === "executive" ? "Reporte ejecutivo" : "Reporte técnico", 25, true, "0.08 0.20 0.35"); y -= 28;
   paragraph(`Corte: ${snapshot.name} | Fecha de referencia: ${snapshot.referenceDate ?? "Sin fecha de referencia"}`, { color: "0.45 0.40 0.42" });
-  const scopeNames: Record<string, string> = { region: "Región", environment: "Ambiente", os: "Sistema operativo", exposure: "Exposición", criticality: "Criticidad", severity: "Severidad", status: "Estado", category: "Categoría", age: "Antigüedad", sla: kind === "executive" ? "Plazo de atención" : "SLA", search: "Búsqueda" };
-  const scope = Object.entries(filters).filter(([, value]) => value).map(([key, value]) => `${scopeNames[key] ?? key}: ${label(value)}`).join(" | ") || "Sin filtros";
+  paragraph(`SLA por criticidad del activo: ${criticalities.map(level => `${label(level)} ${data.slaPolicy[level]} días`).join(", ")}.`, { size: 9 });
+  const scopeNames: Record<string, string> = { region: "Región", country: "País", environment: "Ambiente", os: "Sistema operativo", exposure: "Exposición", criticality: "Criticidad", severity: "Severidad", status: "Estado", category: "Categoría", age: "Antigüedad", sla: kind === "executive" ? "Plazo de atención" : "SLA", search: "Búsqueda" };
+  const scope = Object.entries(filters).filter(([, value]) => value).map(([key, value]) => `${scopeNames[key] ?? key}: ${key === "country" ? countryLabel(value) : label(value)}`).join(" | ") || "Sin filtros";
   paragraph(`Alcance: ${scope}`, { color: "0.45 0.40 0.42" }); y -= 8; line(40, y, 555); y -= 24;
   heading("Indicadores del alcance");
-  if (kind === "executive") { paragraph("Resume los problemas pendientes, los más graves, los vencidos y los servidores incluidos en la selección.", { size: 9, color: "0.45 0.40 0.42" }); y -= 15; }
-  const cards = [[format(metrics.open), "Problemas pendientes"], [format(metrics.high), "Gravedad nivel 4-5"], [format(metrics.overdue), kind === "executive" ? "Plazo vencido" : "SLA incumplido"], [format(metrics.servers), "Servidores incluidos"]];
+  const cards = [[format(metrics.open), "Problemas pendientes"], [format(metrics.high), kind === "executive" ? "Gravedad 4-5 (máx. 5)" : "Gravedad nivel 4-5"], [format(metrics.overdue), kind === "executive" ? "Plazo vencido" : "SLA incumplido"], [format(metrics.servers), "Servidores incluidos"]];
   cards.forEach(([value, caption], i) => { const x = 40 + i * 130; text(x, y, value, 24, true, i === 0 ? "0.15 0.39 0.92" : undefined); text(x, y - 19, caption, 9, false, "0.45 0.40 0.42"); }); y -= 44; line(40, y, 555); y -= 12;
   // Keep the visual summary on the opening page when space permits.
   ensure(440);
   heading("Estado de los hallazgos");
   paragraph("Cada sector representa la proporción de un estado sobre el total filtrado. La leyenda muestra cantidad y porcentaje; verde identifica remediados.", { size: 9 });
   const states = ["NEW", "ACTIVE", "REOPENED", "REMEDIATED"];
-  const stateColors = ["0.15 0.39 0.92", "0.03 0.57 0.70", "0.85 0.47 0.02", "0.09 0.64 0.29"];
+  const stateColors = ["0.85 0.47 0.02", "0.92 0.35 0.05", "0.75 0.07 0.24", "0.09 0.64 0.29"];
   const total = allFindings.length;
   const cx = 145, cy = y - 75, radius = 62;
   let angle = -Math.PI / 2;
@@ -116,18 +156,20 @@ export function buildReportPdf(data: ReportData): Uint8Array {
   });
   y -= 170;
   paragraph(`Total del alcance: ${format(total)} hallazgos.`, { bold: true });
+  if (kind === "executive") ensure(250);
   heading("Severidad de los pendientes");
-  paragraph("Niveles originales del archivo. Las columnas muestran conteos, sin convertirlos a CVSS.", { size: 9 });
+  paragraph("La escala del Excel va de 1 a 5. Los niveles 4 y 5 se cuentan como graves.", { size: 9 });
   const columnCounts = [1, 2, 3, 4, 5].map(level => findings.filter(f => +f.Severity === level).length);
   const columnColors = ["0.03 0.57 0.70", "0.15 0.39 0.92", "0.85 0.47 0.02", "0.92 0.35 0.05", "0.86 0.15 0.15"];
   const maximum = niceMax(Math.max(1, ...columnCounts));
-  const baseline = y - 140;
+  const plotHeight = kind === "executive" ? 92 : 100;
+  const baseline = y - plotHeight - (kind === "executive" ? 32 : 40);
   text(65, y - 10, "Cantidad de hallazgos pendientes (eje Y)", 9, true);
-  for (let tick = 0; tick <= 4; tick++) { const at = baseline + tick / 4 * 100; line(65, at, 535, "0.85 0.89 0.93"); text(40, at - 3, format(maximum * tick / 4), 8); }
-  commands.push(`0.35 0.43 0.53 RG 0.7 w 65 ${baseline + 100} m 65 ${baseline} l 535 ${baseline} l S`);
+  for (let tick = 0; tick <= 4; tick++) { const at = baseline + tick / 4 * plotHeight; line(65, at, 535, "0.85 0.89 0.93"); text(40, at - 3, format(maximum * tick / 4), 8); }
+  commands.push(`0.35 0.43 0.53 RG 0.7 w 65 ${baseline + plotHeight} m 65 ${baseline} l 535 ${baseline} l S`);
   text(210, baseline - 38, "Nivel de severidad (eje X)", 9, true);
   columnCounts.forEach((count, index) => {
-    const x = 80 + index * 94, height = count / maximum * 100;
+    const x = 80 + index * 94, height = count / maximum * plotHeight;
     if (count) commands.push(`${columnColors[index]} rg ${x} ${baseline} 50 ${height.toFixed(2)} re f`);
     text(x + 10, baseline + height + 12, format(count), 11, true);
     text(x + 5, baseline - 20, `Nivel ${index + 1}`, 10);
@@ -135,15 +177,47 @@ export function buildReportPdf(data: ReportData): Uint8Array {
   y = baseline - 45;
 
   newPage();
+  countChart("Cumplimiento del SLA", "Pendientes evaluados con el plazo de su criticidad y el rango de antigüedad.", [["Dentro del plazo", findings.filter(f => f.SLAStatus === "WITHIN").length], ["Fuera del plazo", findings.filter(f => f.SLAStatus === "BREACHED").length], ["Sin datos para evaluar", findings.filter(f => f.SLAStatus === "UNKNOWN").length]]);
   if (kind === "executive") {
-    regionalCriticalityChart();
-    barChart("¿Cuánto tiempo llevan pendientes?", "Muestra cuántos problemas llevan pendientes en cada intervalo de tiempo reportado.", ["AGE_0_7D", "AGE_8_30D", "AGE_31_90D", "AGE_91_180D", "AGE_GT180D"].map(value => [label(value), findings.filter(f => f.AgeBand === value).length]));
+    const ageGroups: BarEntry[] = ["AGE_0_7D", "AGE_8_30D", "AGE_31_90D", "AGE_91_180D", "AGE_GT180D"].map(value => [label(value), findings.filter(f => f.AgeBand === value).length]);
+    const ageCounts = ageGroups.map(([, count]) => count);
+    const smallest = Math.min(...ageCounts);
+    const largest = Math.max(...ageCounts);
+    const difference = largest - smallest;
+    const padding = Math.max(1, difference / 4);
+    const ageAxis = smallest > padding && difference <= largest / 4 ? countScale(smallest - padding, largest + padding, 6) : countScale(0, largest, 10);
+    const zoomed = ageAxis.minimum > 0;
+    countChart("¿Cuánto tiempo llevan pendientes?", `Cada ${zoomed ? "punto marca" : "barra muestra"} el conteo de hallazgos en un rango de antigüedad del Excel.`, ageGroups, "Cantidad de hallazgos pendientes", ageAxis);
+    if (zoomed) {
+      const comparison = difference ? `La diferencia entre extremos es de ${format(difference)}.` : "Todos los rangos tienen el mismo conteo.";
+      paragraph(`Eje ampliado de ${format(ageAxis.minimum)} a ${format(ageAxis.maximum)} hallazgos. ${comparison}`, { size: 9 });
+    }
     newPage();
+    regionalCriticalityChart();
     regionalMatrix("severity");
     regionalMatrix("criticality");
+    newPage();
     const impacted = new Set(findings.filter(f => +f.Severity >= 4).map(f => f.ServerID));
-    barChart("Servidores que requieren atención", "Compara servidores con problemas graves, fin de vida o soporte y exposición a Internet; pueden aparecer en varias categorías.", [["Con problemas graves", impacted.size], ["Fin de vida o soporte", servers.filter(server => server.OSLifecycle === "EOL" || server.OSLifecycle === "EOL_EOS").length], ["Expuestos a Internet", servers.filter(server => server.ExposureCategory === "INTERNET_EXPOSED").length]], "Cantidad de servidores");
-    if (snapshot.warnings.length) { heading("Calidad de los datos"); paragraph(`Indica si hay diferencias en la información importada que conviene revisar: ${format(snapshot.warnings.length)} observaciones en este corte.`); }
+    const attentionGroups: BarEntry[] = [
+      ["Con problemas graves", impacted.size, "0.72 0.11 0.16"],
+      ["Fin de vida o soporte", servers.filter(server => server.OSLifecycle === "EOL" || server.OSLifecycle === "EOL_EOS").length, "0.74 0.41 0.05"],
+      ["Expuestos a Internet", servers.filter(server => server.ExposureCategory === "INTERNET_EXPOSED").length, "0.11 0.39 0.67"],
+    ];
+    countChart("Servidores que requieren atención", "Cada barra cuenta servidores del alcance. Un servidor puede aparecer en más de una categoría.", attentionGroups, "Cantidad de servidores", countScale(0, Math.max(...attentionGroups.map(([, count]) => count)), 6));
+    paragraph("Problema grave. El servidor tiene al menos un hallazgo pendiente de nivel 4 o 5.", { size: 9 });
+    paragraph("Fin de vida o soporte. El Excel marca el sistema operativo como retirado o sin soporte del proveedor.", { size: 9 });
+    paragraph("Exposición a Internet. El inventario clasifica el servidor como accesible desde Internet.", { size: 9 });
+    y -= 18;
+    ensure(100);
+    heading("Calidad de los datos");
+    paragraph("Al importar el Excel se revisa la consistencia del corte completo. Cada aviso describe qué revisar y el conteo asociado.", { size: 9, color: "0.45 0.40 0.42" });
+    if (!snapshot.warnings.length) paragraph("La importación terminó sin avisos de consistencia.");
+    for (const warning of snapshot.warnings) {
+      ensure(55);
+      y -= 3;
+      paragraph(warningTitles[warning.code] ?? "Aviso de importación", { size: 10, bold: true });
+      paragraph(warning.message, { size: 9 });
+    }
   } else {
     const serverMap = new Map(servers.map(server => [server.ServerID, server]));
     const criticalServers = servers.filter(server => ["CRITICAL", "VERY_HIGH"].includes(server.AssetCriticality)).length;
@@ -173,7 +247,7 @@ export function buildReportPdf(data: ReportData): Uint8Array {
     }
     if (!regionData.length) paragraph("No hay servidores en el alcance seleccionado.");
     newPage(); heading("Antigüedad y remediación");
-    const chart = (title: string, entries: [string, number][]) => barChart(title, "Conteos de pendientes por categoría del archivo; una barra más larga indica mayor volumen.", entries);
+    const chart = (title: string, entries: [string, number][]) => countChart(title, "Conteos de pendientes por categoría del archivo; una barra más larga indica mayor volumen.", entries);
     paragraph("Los conteos corresponden a hallazgos pendientes. La antigüedad se presenta en rangos, sin inferir fechas exactas.", { size: 9, color: "0.45 0.40 0.42" });
     chart("Antigüedad de los pendientes", ["AGE_0_7D", "AGE_8_30D", "AGE_31_90D", "AGE_91_180D", "AGE_GT180D"].map(value => [label(value), findings.filter(f => f.AgeBand === value).length]));
     chart("Acciones de remediación", ["PATCH_OR_UPDATE", "VERSION_UPGRADE", "CONFIGURATION_CHANGE", "GENERAL_REMEDIATION"].map(value => [label(value), findings.filter(f => f.RemediationCategory === value).length]));

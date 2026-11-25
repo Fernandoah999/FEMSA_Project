@@ -15,6 +15,7 @@ Los archivos de procedencia `.webp.json` y los metadatos PNG se generaron median
 
 - `src/lib/globe-land.json`: 6,923 puntos muestreados de la cartografía Natural Earth ya existente en `public/data/countries.json`. Se reproduce con `node scripts/build-globe-land.mjs`; no requiere conexiones externas. Las marcas numéricas del archivo distinguen EUA, México y Brasil para iluminar su superficie.
 - `src/components/route-globe.tsx` y `route-globe-utils/globe.ts`: adaptación del componente Route Globe pegado por el usuario en la conversación. Se completaron las utilidades ausentes y se adaptaron rutas, puntos, pausa, arrastre y movimiento reducido al dashboard. No se añadió un paquete externo.
+- `src/lib/country-codes.json`: códigos ISO 3166-1 de `iso-codes`, con puntos de referencia de la base de zonas IANA para países sin contorno en Natural Earth. Los contornos de los demás países se toman de la cartografía local.
 - La correspondencia Norte → EUA, Centro → México y Sur → Brasil fue solicitada por el usuario. Es una referencia del simulador, no una ubicación contenida en el Excel. Las líneas, cometas y ondas de puntos son animaciones ilustrativas; no son tráfico ni ataques detectados.
 
 ## Navegación y selectores
@@ -25,4 +26,3 @@ Los archivos de procedencia `.webp.json` y los metadatos PNG se generaron median
 - `analysis-accordion.tsx` y su CSS: adaptación del acordeón Radix compartido por el usuario, con la dependencia `@radix-ui/react-accordion` (MIT). Referencia de API: https://www.radix-ui.com/primitives/docs/components/accordion. Se conserva la interacción de un único panel expandido y se adapta a la identidad FEMSA sin Tailwind ni utilidades adicionales.
 
 - `text-decoder.tsx`: adaptación del TextDecoder compartido por el usuario para cifras. Conserva los separadores numéricos, ejecuta una decodificación finita por cambio de alcance y respeta movimiento reducido; los nombres accesibles siempre contienen el valor real.
-- `src/lib/globe-countries.json`: contornos de EUA, México y Brasil derivados de la misma cartografía Natural Earth ya atribuida. Se regenera junto a los puntos con `node scripts/build-globe-land.mjs`. El resaltado proyecta esos contornos sobre el globo; son referencias del simulador, no ubicaciones de servidores.

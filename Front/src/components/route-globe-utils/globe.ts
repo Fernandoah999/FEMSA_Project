@@ -1,7 +1,10 @@
 import samples from "@/lib/globe-land.json";
-import countries from "@/lib/globe-countries.json";
-import { geoOrthographic, geoPath } from "d3-geo";
+import topology from "../../../public/data/countries.json";
+import { countryCatalog } from "@/lib/inventory";
+import { geoCentroid, geoOrthographic, geoPath } from "d3-geo";
+import { feature } from "topojson-client";
 import type { FeatureCollection, Geometry } from "geojson";
+import type { GeometryCollection, Topology } from "topojson-specification";
 
 export type Vec3 = [number, number, number];
 export type LandDot = { v: Vec3; region: number };
@@ -21,24 +24,34 @@ export function slerp(a: Vec3, b: Vec3, t: number): Vec3 {
 const DOTS: LandDot[] = samples.map(([lon, lat, region]) => ({ v: toVec(lon, lat), region }));
 export const landDots = () => DOTS;
 
-export function drawSelectedRegion(ctx: CanvasRenderingContext2D, camera: { cx: number; cy: number; r: number; yaw: number; tilt: number }, selected: number) {
-  const country = (countries as FeatureCollection<Geometry>).features[selected - 1];
+const countryTopology = topology as unknown as Topology<{ countries: GeometryCollection }>;
+const countryFeatures = feature(countryTopology, countryTopology.objects.countries) as FeatureCollection<Geometry>;
+const countriesById = new Map(countryFeatures.features.map(country => [country.id, country]));
+const countryPositions = new Map(Object.entries(countryCatalog).map(([code, info]) => {
+  const country = countriesById.get(info.numeric);
+  const point = country ? geoCentroid(country) : info.point;
+  return [code, point && { lon: point[0], lat: point[1] }] as const;
+}));
+export const countryPosition = (code: string) => countryPositions.get(code);
+
+export function drawSelectedCountry(ctx: CanvasRenderingContext2D, camera: { cx: number; cy: number; r: number; yaw: number; tilt: number }, code: string) {
+  const country = countriesById.get(countryCatalog[code]?.numeric);
   if (!country) return;
   const projection = geoOrthographic().translate([camera.cx, camera.cy]).scale(camera.r).rotate([-camera.yaw / RAD, -camera.tilt / RAD]).clipAngle(90);
   const path = geoPath(projection, ctx);
   ctx.save(); ctx.globalAlpha = 1;
   ctx.beginPath(); path(country);
-  ctx.fillStyle = "rgb(184 87 131 / .55)"; ctx.fill();
+  ctx.fillStyle = "rgb(184 87 131 / .68)"; ctx.fill();
   ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.1; ctx.lineJoin = "round"; ctx.stroke();
   ctx.restore();
 }
 
-export function drawGlobe(ctx: CanvasRenderingContext2D, dots: LandDot[], camera: { cx: number; cy: number; r: number; yaw: number; tilt: number }, t: number, selected: number, reduced: boolean, hubs: Vec3[]) {
+export function drawGlobe(ctx: CanvasRenderingContext2D, dots: LandDot[], camera: { cx: number; cy: number; r: number; yaw: number; tilt: number }, t: number, selected: number, reduced: boolean, hubs: Vec3[], illustrative: boolean) {
   const { cx, cy, r, yaw, tilt } = camera;
   // Back hemisphere remains very faint, so the sphere retains depth without a texture.
   for (const dot of dots) {
     const [x, y, z] = rotate(dot.v, yaw, tilt);
-    const regionVisible = dot.region > 0 && (!selected || dot.region === selected);
+    const regionVisible = illustrative && dot.region > 0 && (!selected || dot.region === selected);
     let alpha = z > 0 ? .20 + z * .36 : .035;
     if (selected && !regionVisible) alpha = z > 0 ? .12 + z * .08 : .02;
     if (z > 0 && regionVisible) {
