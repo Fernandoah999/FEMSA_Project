@@ -38,7 +38,7 @@ cd FEMSA_Project
 docker compose up -d --build --wait
 ```
 
-Abre [http://127.0.0.1:3040](http://127.0.0.1:3040). Compose publica el puerto en la interfaz local del equipo. La imagen `femsa-atlas:0.1.0` incluye Node.js, Python y una compilación de producción de Next.js. El contenedor corre con el usuario `node`.
+Abre [http://127.0.0.1:3040](http://127.0.0.1:3040). Compose publica el puerto en la interfaz local del equipo. La imagen `femsa-atlas:0.1.1` incluye Node.js, Python y una compilación de producción de Next.js. El contenedor corre con el usuario `node`.
 
 SQLite queda en el volumen `inventory-data`, montado en `/app/data`. El volumen conserva los cortes al detener o recrear el contenedor. La primera instalación empieza vacía.
 
@@ -55,7 +55,7 @@ Si el puerto **3040** está ocupado, define `FEMSA_HOST_PORT` antes de iniciar C
 Descarga de [Releases](https://github.com/Fernandoah999/FEMSA_Project/releases) el archivo de imagen para la arquitectura del equipo. Copia el archivo al destino y ejecuta desde la carpeta que contiene `compose.yaml`:
 
 ```bash
-docker image load --input femsa-atlas-0.1.0-linux-amd64.tar.gz
+docker image load --input femsa-atlas-0.1.1-linux-amd64.tar.gz
 docker compose up -d --no-build --pull never --wait
 ```
 
@@ -125,7 +125,7 @@ Cada Excel debe conservar las dos hojas y sus **17 columnas de servidores y 20 d
 
 En la hoja Servidores puedes agregar la columna opcional `País` (`Country` o `CountryCode`). El globo reconoce nombres en español o inglés y códigos ISO 3166-1. Seleccionar un país actualiza los indicadores y las tablas.
 
-En **Cumplimiento del SLA** puedes configurar 7, 30, 90 o 180 días por criticidad del servidor. La política se guarda en el navegador y se aplica al panorama, los filtros, los reportes y la comparación.
+En **Cumplimiento del SLA** puedes escribir cualquier cantidad entera de días desde 0 para cada criticidad y pulsar **Aplicar plazos**. La política se guarda en el navegador y se aplica al panorama, los filtros, los reportes y la comparación. Si el rango de antigüedad cruza el plazo, el hallazgo queda **Indeterminado**. Por ejemplo, un rango de 8 a 30 días cruza un plazo de 15 días.
 
 La comparación necesita identificadores `ServerID` y `FindingID` estables entre archivos. Un hallazgo que deja de aparecer se presenta como **ausente**, no se da por remediado. El mismo archivo para la misma fecha no se guarda dos veces.
 

@@ -26,7 +26,18 @@ assert.equal(metrics(relaxed).overdue, 6);
 assert.equal(relaxed.findings.find(finding => finding.FindingID === "C-1").SLAStatus, "WITHIN");
 assert.equal(relaxed.findings.find(finding => finding.FindingID === "C-1").OriginalSLAStatus, "SOURCE");
 assert.deepEqual(relaxed.findings.filter(finding => finding.ServerID !== "C"), computed.findings.filter(finding => finding.ServerID !== "C"));
-assert.throws(() => applySla(snapshot, { ...defaultSlaPolicy, CRITICAL: 15 }), /Plazo SLA/);
+const custom = applySla(snapshot, { ...defaultSlaPolicy, CRITICAL: 15, LOW: 181 });
+assert.deepEqual(custom.findings.filter(f => f.ServerID === "C").map(f => f.SLAStatus), ["WITHIN", "UNKNOWN", "BREACHED", "BREACHED", "BREACHED"]);
+assert.equal(custom.findings.find(f => f.FindingID === "C-1").SLATargetDays, "15");
+assert.deepEqual(filterInventory(custom, { ...emptyFilters, sla: "UNKNOWN" }).findings.map(f => f.FindingID), ["C-1", "L-4"]);
+assert.equal(metrics(custom).overdue, 5);
+assert.deepEqual(filterInventory(custom, { ...emptyFilters, sla: "BREACHED" }).findings.map(f => f.FindingID), ["C-2", "C-3", "C-4", "M-3", "M-4"]);
+const sameDay = applySla(snapshot, { ...defaultSlaPolicy, CRITICAL: 0 });
+assert.equal(sameDay.findings.find(f => f.FindingID === "C-0").SLAStatus, "UNKNOWN");
+assert.equal(sameDay.findings.find(f => f.FindingID === "C-1").SLAStatus, "BREACHED");
+for (const invalid of [-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, "15"]) {
+  assert.throws(() => applySla(snapshot, { ...defaultSlaPolicy, CRITICAL: invalid }), /plazo SLA.*días enteros/);
+}
 
 const special = applySla({ ...snapshot, findings: [
   { ServerID: "C", FindingStatus: "REMEDIATED", AgeBand: "AGE_GT180D" },

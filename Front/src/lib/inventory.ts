@@ -1,3 +1,5 @@
+import countryCodes from "./country-codes.json" with { type: "json" };
+
 export type InventoryRow = Record<string, string>;
 export type ImportWarning = { code: string; count: number; message: string };
 export type SnapshotMeta = {
@@ -20,7 +22,7 @@ export const labels: Record<string, string> = {
   GENERAL_INFRASTRUCTURE: "Infraestructura general", ERP_ANALYTICS: "Analítica ERP", DATABASE: "Base de datos", ERP_GOVERNANCE: "Gobierno ERP", WEB_APPLICATION: "Aplicación web", SECURITY: "Seguridad", DIRECTORY: "Directorio", FILE_TRANSFER: "Transferencia de archivos", ERP_PRODUCTION: "Producción ERP", ERP: "ERP", OPERATING_SYSTEM: "Sistema operativo", SECURE_CONFIGURATION: "Configuración segura", MIDDLEWARE: "Middleware",
   AGE_0_7D: "0–7 días", AGE_8_30D: "8–30 días", AGE_31_90D: "31–90 días", AGE_91_180D: "91–180 días", AGE_GT180D: "Más de 180 días",
   PATCH_OR_UPDATE: "Parche o actualización", VERSION_UPGRADE: "Cambio de versión", CONFIGURATION_CHANGE: "Cambio de configuración", GENERAL_REMEDIATION: "Corrección general",
-  WITHIN: "Dentro del plazo", NOT_APPLICABLE: "No aplica (remediado)", UNKNOWN: "Sin datos para evaluar el SLA",
+  WITHIN: "Dentro del plazo", NOT_APPLICABLE: "No aplica (remediado)", UNKNOWN: "Indeterminado",
   BREACHED: "Incumplido", WITHIN_OR_NOT_APPLICABLE: "Dentro de plazo o no aplicable", YES: "Sí", NO: "No", KNOWN_OR_AVAILABLE: "Conocida o disponible", NOT_IDENTIFIED: "No identificada", ASSOCIATED: "Asociado",
 };
 export const label = (value: string) => Object.hasOwn(labels, value) ? labels[value] : value;
@@ -84,23 +86,32 @@ export function csv(rows: InventoryRow[], columns: string[]) {
   return "\uFEFF" + [columns, ...rows.map(r => columns.map(c => r[c] ?? ""))].map(row => row.map(escape).join(",")).join("\r\n");
 }
 
-export const slaDaysOptions = [7, 30, 90, 180] as const;
 export const criticalities = ["CRITICAL", "VERY_HIGH", "HIGH", "MEDIUM", "LOW"] as const;
 export type Criticality = typeof criticalities[number];
-export type SlaDays = typeof slaDaysOptions[number];
-export type SlaPolicy = Record<Criticality, SlaDays>;
+export type SlaPolicy = Record<Criticality, number>;
 export const defaultSlaPolicy: SlaPolicy = { CRITICAL: 7, VERY_HIGH: 30, HIGH: 30, MEDIUM: 90, LOW: 180 };
-const ageUpperBounds = new Map([["AGE_0_7D", 7], ["AGE_8_30D", 30], ["AGE_31_90D", 90], ["AGE_91_180D", 180], ["AGE_GT180D", Infinity]]);
-export const isSlaDays = (value: unknown): value is SlaDays => slaDaysOptions.some(days => value === days);
+const ageBounds = new Map<string, readonly [number, number]>([
+  ["AGE_0_7D", [0, 7]],
+  ["AGE_8_30D", [8, 30]],
+  ["AGE_31_90D", [31, 90]],
+  ["AGE_91_180D", [91, 180]],
+  ["AGE_GT180D", [181, Infinity]],
+]);
+export const isSlaDays = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+
 export function applySla(snapshot: Snapshot, policy: SlaPolicy): Snapshot {
-  if (!criticalities.every(level => isSlaDays(policy[level]))) throw new Error("Plazo SLA no compatible con los rangos del archivo");
-  const daysByCriticality = new Map<string, SlaDays>(criticalities.map(level => [level, policy[level]]));
+  if (!criticalities.every(level => isSlaDays(policy[level]))) throw new Error("El plazo SLA debe expresarse en días enteros a partir de 0.");
+  const daysByCriticality = new Map<string, number>(criticalities.map(level => [level, policy[level]]));
   const daysByServer = new Map(snapshot.servers.map(server => [server.ServerID, daysByCriticality.get(server.AssetCriticality)]));
   return { ...snapshot, findings: snapshot.findings.map(finding => {
     const days = daysByServer.get(finding.ServerID);
-    const age = ageUpperBounds.get(finding.AgeBand);
-    let status = "NOT_APPLICABLE";
-    if (isOpen(finding)) status = days === undefined || age === undefined ? "UNKNOWN" : age <= days ? "WITHIN" : "BREACHED";
+    const age = ageBounds.get(finding.AgeBand);
+    let status = isOpen(finding) ? "UNKNOWN" : "NOT_APPLICABLE";
+    if (status === "UNKNOWN" && days !== undefined && age) {
+      const [youngest, oldest] = age;
+      if (oldest <= days) status = "WITHIN";
+      else if (youngest > days) status = "BREACHED";
+    }
     return {
       ...finding,
       OriginalSLAStatus: finding.OriginalSLAStatus ?? finding.SLAStatus,
@@ -109,4 +120,3 @@ export function applySla(snapshot: Snapshot, policy: SlaPolicy): Snapshot {
     };
   }) };
 }
-import countryCodes from "./country-codes.json" with { type: "json" };

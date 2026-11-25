@@ -1,6 +1,6 @@
 services:
   atlas:
-    image: femsa-atlas:0.1.0
+    image: femsa-atlas:0.1.1
     build: .
     ports:
       - "127.0.0.1:${FEMSA_HOST_PORT:-3040}:3040"

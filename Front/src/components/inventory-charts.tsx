@@ -1,4 +1,5 @@
-import { criticalities, format, label, slaDaysOptions, type Criticality, type InventoryRow, type SlaDays, type SlaPolicy } from "@/lib/inventory";
+import { useState, type FormEvent } from "react";
+import { criticalities, format, isSlaDays, label, type Criticality, type InventoryRow, type SlaPolicy } from "@/lib/inventory";
 import s from "./inventory-dashboard.module.css";
 
 const states = [
@@ -53,14 +54,31 @@ export function InventoryCharts({ findings, pending, scope }: { findings: Invent
 const slaStates = [
   { key: "WITHIN", name: "Dentro del plazo", color: "var(--chart-within)" },
   { key: "BREACHED", name: "Fuera del plazo", color: "var(--chart-overdue)" },
-  { key: "UNKNOWN", name: "Sin datos para evaluar", color: "var(--chart-unknown)" },
+  { key: "UNKNOWN", name: label("UNKNOWN"), color: "var(--chart-unknown)" },
 ];
 
-export function SlaChart({ pending, policy, onChange }: { pending: InventoryRow[]; policy: SlaPolicy; onChange: (level: Criticality, days: SlaDays) => void }) {
+export function SlaChart({ pending, policy, onChange }: { pending: InventoryRow[]; policy: SlaPolicy; onChange: (policy: SlaPolicy) => void }) {
+  const [draft, setDraft] = useState<Partial<Record<Criticality, string>>>({});
+  const [applied, setApplied] = useState(false);
   const counts = slaStates.map(state => {
     const count = pending.filter(finding => finding.SLAStatus === state.key).length;
     return { ...state, count, percent: pending.length ? count / pending.length * 100 : 0 };
   });
+
+  function applyPolicy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const next = { ...policy };
+    for (const level of criticalities) {
+      const value = draft[level];
+      if (value === undefined) continue;
+      const days = Number(value);
+      if (value === "" || !isSlaDays(days)) return;
+      next[level] = days;
+    }
+    onChange(next);
+    setDraft({});
+    setApplied(true);
+  }
 
   return <section className={s.slaChart} aria-labelledby="sla-heading">
     <div className={s.slaResults}>
@@ -73,16 +91,26 @@ export function SlaChart({ pending, policy, onChange }: { pending: InventoryRow[
         <strong>{format(state.count)}</strong>
         <small>{state.percent.toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%</small>
       </li>)}</ul>
+      <p className={s.slaNote}>El SLA queda indeterminado si el rango de antigüedad cruza el plazo o faltan datos para evaluarlo.</p>
     </div>
-    <fieldset className={s.slaPolicy} aria-describedby="sla-help">
-      <legend>Plazo por criticidad del activo</legend>
-      <p id="sla-help">El plazo se compara con los rangos de antigüedad del Excel. Cada cambio se aplica al instante.</p>
-      <div className={s.slaFields}>{criticalities.map(level => <div key={level}>
-        <label htmlFor={`sla-days-${level}`}>{label(level)}</label>
-        <select id={`sla-days-${level}`} value={policy[level]} onChange={event => onChange(level, Number(event.target.value) as SlaDays)}>
-          {slaDaysOptions.map(days => <option key={days} value={days}>{days} días</option>)}
-        </select>
-      </div>)}</div>
-    </fieldset>
+    <form className={s.slaPolicy} onSubmit={applyPolicy}>
+      <fieldset aria-describedby="sla-help">
+        <legend>Plazo por criticidad del activo</legend>
+        <p id="sla-help">Escribe días enteros por criticidad. Usa 0 para el mismo día.</p>
+        <div className={s.slaFields}>{criticalities.map(level => <div key={level}>
+          <label htmlFor={`sla-days-${level}`}>{label(level)}</label>
+          <input id={`sla-days-${level}`} type="number" inputMode="numeric" min={0} max={Number.MAX_SAFE_INTEGER} step={1} required value={draft[level] ?? policy[level]}
+            onChange={event => {
+              const value = event.target.value;
+              setDraft(previous => ({ ...previous, [level]: value }));
+              setApplied(false);
+            }} />
+        </div>)}</div>
+        <div className={s.slaActions}>
+          <button className={s.secondary} type="submit" disabled={!Object.keys(draft).length}>Aplicar plazos</button>
+          <span role="status">{applied && "Plazos aplicados."}</span>
+        </div>
+      </fieldset>
+    </form>
   </section>;
 }

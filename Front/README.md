@@ -44,7 +44,7 @@ La identidad combina FEMSA V1 y V3, con tipografía mayor, cuatro indicadores pr
 - Mismo archivo y misma fecha: duplicado rechazado. Mismo archivo y distinta fecha: se conserva con observación.
 - No se ejecutan fórmulas, macros ni conexiones. Se guardan los registros importados, metadata y huella SHA-256; no se almacena el archivo Excel original.
 
-Los indicadores usan el detalle: pendientes = NEW + ACTIVE + REOPENED; vencidos = pendientes cuyo rango de antigüedad supera el plazo de la criticidad del servidor. Los límites admitidos son 7, 30, 90 y 180 días. El estado SLA del Excel se conserva en la ficha técnica y el CSV. Los niveles 1–5 se conservan sin asignar CVSS. Los rangos temporales no permiten días exactos ni tiempos medios de remediación. ComplianceFlag y EncryptionContext tienen interpretaciones provisionales, documentadas en **Criterios del análisis**.
+Los indicadores usan el detalle. Los pendientes son los hallazgos NEW, ACTIVE y REOPENED. El plazo por criticidad se expresa en días enteros desde 0. Un pendiente está dentro del plazo si todo su rango de antigüedad cabe en él. Está vencido si todo el rango lo supera. Queda indeterminado si el rango cruza el plazo o faltan datos. El estado SLA del Excel se conserva en la ficha técnica y el CSV. La severidad conserva los niveles 1–5 del Excel. Los rangos representan bandas de antigüedad. ComplianceFlag y EncryptionContext tienen interpretaciones provisionales en **Criterios del análisis**.
 
 ## Persistencia y API
 

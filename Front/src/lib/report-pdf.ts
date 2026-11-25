@@ -177,7 +177,7 @@ export function buildReportPdf(data: ReportData): Uint8Array {
   y = baseline - 45;
 
   newPage();
-  countChart("Cumplimiento del SLA", "Pendientes evaluados con el plazo de su criticidad y el rango de antigüedad.", [["Dentro del plazo", findings.filter(f => f.SLAStatus === "WITHIN").length], ["Fuera del plazo", findings.filter(f => f.SLAStatus === "BREACHED").length], ["Sin datos para evaluar", findings.filter(f => f.SLAStatus === "UNKNOWN").length]]);
+  countChart("Cumplimiento del SLA", "Se compara el plazo por criticidad con el rango de antigüedad. Si el rango cruza el plazo o faltan datos, el resultado queda indeterminado.", [["Dentro del plazo", findings.filter(f => f.SLAStatus === "WITHIN").length], ["Fuera del plazo", findings.filter(f => f.SLAStatus === "BREACHED").length], [label("UNKNOWN"), findings.filter(f => f.SLAStatus === "UNKNOWN").length]]);
   if (kind === "executive") {
     const ageGroups: BarEntry[] = ["AGE_0_7D", "AGE_8_30D", "AGE_31_90D", "AGE_91_180D", "AGE_GT180D"].map(value => [label(value), findings.filter(f => f.AgeBand === value).length]);
     const ageCounts = ageGroups.map(([, count]) => count);
